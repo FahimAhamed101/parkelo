@@ -26,6 +26,7 @@ class CustomTextField extends StatefulWidget {
   final int? maxLines;
   final bool? enabled;
   final String obscure;
+  final double? borderRadius;
 
   const CustomTextField({
     super.key,
@@ -50,6 +51,7 @@ class CustomTextField extends StatefulWidget {
     this.enabled,
     this.onSubmitted,
     this.obscure = '*',
+    this.borderRadius,
   });
 
   @override
@@ -90,7 +92,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
       onFieldSubmitted: (value) => widget.onSubmitted?.call(value),
       controller: widget.controller,
       keyboardType: widget.keyboardType ?? TextInputType.text,
-      maxLines: widget.isPassword ? 1 : widget.maxLines,
+      maxLines: widget.isPassword ? 1 : (widget.maxLines ?? 1),
       obscureText: widget.isPassword ? obscureText : false,
       obscuringCharacter: widget.obscure,
       enabled: widget.enabled ?? true,
@@ -135,21 +137,21 @@ class _CustomTextFieldState extends State<CustomTextField> {
             : _buildIcon(widget.suffixIcon, color: suffixColor),
 
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(widget.borderRadius ?? 12.r),
           borderSide: BorderSide(
-            color:  Colors.grey.shade400,
+            color: widget.borderColor ?? Colors.grey.shade400,
             width: 1,
           ),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(widget.borderRadius ?? 12.r),
           borderSide: BorderSide(
-            color: AppColors.Primary,
+            color: widget.borderColor ?? AppColors.Primary,
             width: 1.5,
           ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(widget.borderRadius ?? 12.r),
           borderSide: BorderSide(
             color: isDark
                 ? AppColors.Red.withValues(alpha: 0.30)
@@ -157,7 +159,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           ),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12.r),
+          borderRadius: BorderRadius.circular(widget.borderRadius ?? 12.r),
           borderSide: BorderSide(
             color: isDark
                 ? AppColors.Red.withValues(alpha: 0.30)

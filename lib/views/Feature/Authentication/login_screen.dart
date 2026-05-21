@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:get/get.dart';
+import '../../../helpers/route.dart';
 import '../../../utils/appColor/app_colors.dart';
 import '../../base/AppButton/appButton.dart';
 import '../../base/AppText/appText.dart';
@@ -158,7 +159,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 AppButton(
                   text: "Login",
                   onTap: (){
-                    //Get.offAllNamed(AppRoutes.trainerBottomNavScreen);
+                    Get.offAllNamed(AppRoutes.bottomNavScreen);
                   },
                 ),
                 const SizedBox(height: 30),

@@ -6,6 +6,7 @@ class AppColors {
   static const Color bgPrimary = Color(0xFFFFFFFF);
   static const Color textColor = Color(0xFFE1EFFE);
   static const Color secondaryTextColor = Color(0xFF5E5E5E);
+  static const Color DarkBlue = Color(0xFF0052AD);
 
 
 
@@ -14,7 +15,6 @@ class AppColors {
 
   // Light theme colors
   static const Color Primary = Color(0xFF008CFA);
-  static const Color DarkBlue = Color(0xFF11293A);
   static const Color LightBlue = Color(0xFFD9EFFC);
   static const Color Black = Color(0xFF111111);
   static const Color DarkGray = Color(0xFF7A7A7A);
@@ -29,7 +29,7 @@ class AppColors {
   static const Color Red = Color(0xFFF34F4F);
   static const Color Green = Color(0xFF3EBF5A);
   static const Color LightRed = Color(0xFFFDDEDE);
-  static const Color LightGreen = Color(0xFFE4F6E8);
+  static const Color LightGreen = Color(0xFF047857);
   static const Color PrimaryBackgroundAiry = Color(0xFFF5F6FA);
   static const Color Airy = Color(0xFFF9FAFB);
   static const Color RED = Color(0xFFE53935);
