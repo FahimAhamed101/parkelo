@@ -8,18 +8,20 @@ import '../../base/AppText/appText.dart';
 import '../../base/CustomTextfield/CustomTextfield.dart';
 import '../../base/OrDivider/ordivider.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class SignUpScreen extends StatefulWidget {
+  const SignUpScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<SignUpScreen> createState() => _SignUpScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _SignUpScreenState extends State<SignUpScreen> {
 
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
-  bool rememberMe = false;
+  final TextEditingController confirmPasswordController = TextEditingController();
+  bool acceptTerms = false;
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +48,17 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                SizedBox(height: MediaQuery.of(context).size.height * 0.05),
 
                 AppText(
-                  "Welcome Back",
+                  "Create Account",
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: AppColors.textColor,
                 ),
                 const SizedBox(height: 6),
                 AppText(
-                  "Login to your account",
+                  "Sign up to get started",
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
                   color: AppColors.textColor,
@@ -64,7 +66,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
 
                 AppText(
-                  "Enter Your E-mail",
+                  "Full Name",
+                  fontSize: 14,
+                  color: AppColors.textColor,
+                  fontWeight: FontWeight.w400,
+                ),
+                const SizedBox(height: 8),
+                CustomTextField(
+                  hintText: 'Enter your full name',
+                  controller: nameController,
+                  filColor: AppColors.bgPrimary,
+                  borderColor: AppColors.Primary,
+                  prefixIcon: "assets/icons/personIcon.svg",
+                ),
+                const SizedBox(height: 20),
+
+                AppText(
+                  "E-mail",
                   fontSize: 14,
                   color: AppColors.textColor,
                   fontWeight: FontWeight.w400,
@@ -78,7 +96,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: "assets/icons/emailIcon.svg",
                 ),
                 const SizedBox(height: 20),
-                
 
                 AppText(
                   "Password",
@@ -95,77 +112,82 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: "assets/icons/lock.svg",
                   isPassword: true,
                 ),
-                const SizedBox(height: 12),
-                
-                // Remember Me & Forgot Password
+                const SizedBox(height: 20),
+
+                AppText(
+                  "Confirm Password",
+                  fontSize: 14,
+                  color: AppColors.textColor,
+                  fontWeight: FontWeight.w400,
+                ),
+                const SizedBox(height: 8),
+                CustomTextField(
+                  hintText: 'Confirm your password',
+                  controller: confirmPasswordController,
+                  filColor: AppColors.bgPrimary,
+                  borderColor: AppColors.Primary,
+                  prefixIcon: "assets/icons/lock.svg",
+                  isPassword: true,
+                ),
+                const SizedBox(height: 16),
+
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              rememberMe = !rememberMe;
-                            });
-                          },
-                          child: Container(
-                            width: 18,
-                            height: 18,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: rememberMe ? Colors.white : Colors.grey.shade400,
-                                width: 2,
-                              ),
-                            ),
-                            child: rememberMe
-                                ? Center(
-                                    child: Container(
-                                      width: 9,
-                                      height: 9,
-                                      decoration: const BoxDecoration(
-                                        shape: BoxShape.circle,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                  )
-                                : null,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        AppText(
-                          "Remember me",
-                          fontSize: 12,
-                          color: AppColors.textColor,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ],
-                    ),
                     GestureDetector(
                       onTap: () {
-                        Get.toNamed(AppRoutes.forgotPasswordScreen);
+                        setState(() {
+                          acceptTerms = !acceptTerms;
+                        });
                       },
+                      child: Container(
+                        width: 18,
+                        height: 18,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.rectangle,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: acceptTerms ? Colors.white : Colors.grey.shade400,
+                            width: 2,
+                          ),
+                        ),
+                        child: acceptTerms
+                            ? const Center(
+                                child: Icon(
+                                  Icons.check,
+                                  size: 14,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    AppText(
+                      "I accept the ",
+                      fontSize: 12,
+                      color: AppColors.textColor,
+                      fontWeight: FontWeight.w400,
+                    ),
+                    GestureDetector(
+                      onTap: () {},
                       child: AppText(
-                        "Forgot password?",
+                        "Terms & Conditions",
                         fontSize: 12,
-                        color: Color(0xFFFF5C5C).withOpacity(0.9),
+                        color: const Color(0xFFFF5C5C).withOpacity(0.9),
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 32),
-                
 
                 AppButton(
-                  text: "Login",
+                  text: "Sign Up",
                   onTap: (){
-                    Get.offAllNamed(AppRoutes.bottomNavScreen);
+                    Get.toNamed(AppRoutes.emailVerificationScreen);
                   },
                 ),
                 const SizedBox(height: 30),
-                
 
                 const OrDivider(
                   text: "Or Continue With",
@@ -200,9 +222,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           constraints: const BoxConstraints(),
                         )
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
 
-                    // apple Button
+                    // Apple Button
                     Container(
                         padding: const EdgeInsets.all(4),
                         decoration: BoxDecoration(
@@ -254,17 +276,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       AppText(
-                        "Don’t have an account? ",
+                        "Already have an account? ",
                         fontSize: 14,
                         color: AppColors.textColor,
                         fontWeight: FontWeight.w400,
                       ),
                       InkWell(
                         onTap: (){
-                          Get.toNamed(AppRoutes.signUpScreen);
+                          Get.back();
                         },
                         child: AppText(
-                          "Sign Up",
+                          "Login",
                           fontSize: 14,
                           color: AppColors.textColor,
                           fontWeight: FontWeight.w500,
