@@ -9,4 +9,9 @@ class AppIcons {
   static String favorites = "assets/icons/favorites.svg";
   static String account = "assets/icons/account.svg";
 
+  static String parking = "assets/icons/parking.svg";
+  static String prices = "assets/icons/prices.svg";
+  static String services = "assets/icons/services.svg";
+  static String notification = "assets/icons/notificationIcon.svg";
+
 }

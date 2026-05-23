@@ -9,7 +9,6 @@ import 'package:parkealo/views/Feature/Driver/favorites/favorites_screen.dart';
 import '../../../../utils/AppColor/app_colors.dart';
 import '../../../../utils/appIcons/app_icons.dart';
 
-
 class BottomNavScreen extends StatefulWidget {
   final int initialIndex;
   const BottomNavScreen({super.key, this.initialIndex = 0});
@@ -56,7 +55,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
             top: BorderSide(color: Color(0xFFEAEAEA), width: 1.5),
           ),
         ),
-        height: MediaQuery.of(context).size.height * 0.12,
+        height: MediaQuery.of(context).size.height * 0.10,
         child: BottomNavigationBar(
           elevation: 0,
           type: BottomNavigationBarType.fixed,
@@ -71,16 +70,16 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           unselectedLabelStyle: GoogleFonts.inter(
             fontWeight: FontWeight.w600,
             fontSize: 12,
-            color: Color(0xFF4D4D4D)
+            color: Color(0xFF4D4D4D),
           ),
           showSelectedLabels: true,
           backgroundColor: Colors.transparent,
           onTap: navigationItemTap,
           items: [
-            _navItem(AppIcons.explore,  AppIcons.explore, "Explore", 0),
-            _navItem(AppIcons.bookings, AppIcons.bookings,  "Bookings",    1),
+            _navItem(AppIcons.explore, AppIcons.explore, "Explore", 0),
+            _navItem(AppIcons.bookings, AppIcons.bookings, "Bookings", 1),
             _navItem(AppIcons.favorites, AppIcons.favorites, "Favorites", 2),
-            _navItem(AppIcons.account,  AppIcons.account, "Account",  3),
+            _navItem(AppIcons.account, AppIcons.account, "Account", 3),
           ],
         ),
       ),
@@ -88,13 +87,11 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
   }
 
   BottomNavigationBarItem _navItem(
-      String unselected,
-      String selected,
-      String label,
-      int index,
-      ) {
-    final bool isSelected = selectedIndex == index;
-
+    String unselected,
+    String selected,
+    String label,
+    int index,
+  ) {
     return BottomNavigationBarItem(
       label: label,
       icon: SvgPicture.asset(
@@ -108,9 +105,10 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       ),
       activeIcon: SvgPicture.asset(
         selected,
+
         height: 23,
         width: 23,
-        colorFilter:const  ColorFilter.mode(
+        colorFilter: const ColorFilter.mode(
           AppColors.DarkBlue,
           BlendMode.srcIn,
         ),

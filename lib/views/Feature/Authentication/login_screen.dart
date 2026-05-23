@@ -78,7 +78,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   prefixIcon: "assets/icons/emailIcon.svg",
                 ),
                 const SizedBox(height: 20),
-                
+
 
                 AppText(
                   "Password",
@@ -96,7 +96,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   isPassword: true,
                 ),
                 const SizedBox(height: 12),
-                
+
                 // Remember Me & Forgot Password
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -156,7 +156,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 32),
-                
+
 
                 AppButton(
                   text: "Login",
@@ -165,7 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 30),
-                
+
 
                 const OrDivider(
                   text: "Or Continue With",

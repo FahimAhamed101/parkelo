@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_advanced_switch/flutter_advanced_switch.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -118,6 +117,10 @@ class _AccountScreenState extends State<AccountScreen> {
                 _buildSwitchTile(
                   icon: "assets/icons/switch.svg",
                   title: "Switch to Host",
+                  onTap: () {
+                    _switchController.value = true;
+                    Get.toNamed(AppRoutes.switchToHostScreen);
+                  },
                 ),
               ],
             ),
@@ -210,11 +213,11 @@ class _AccountScreenState extends State<AccountScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.12),
+            color: Colors.black.withValues(alpha: 0.12),
             blurRadius: 16,
             spreadRadius: 2,
             offset: const Offset(0, 6),
-          )
+          ),
         ],
       ),
       child: Column(
@@ -270,33 +273,36 @@ class _AccountScreenState extends State<AccountScreen> {
   Widget _buildSwitchTile({
     required String icon,
     required String title,
+    required VoidCallback onTap,
   }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          SvgPicture.asset(
-            icon,
-            width: 22,
-            height: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: AppText(
-              title,
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Color(0xFF585858),
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            SvgPicture.asset(icon, width: 22, height: 22),
+            const SizedBox(width: 12),
+            Expanded(
+              child: AppText(
+                title,
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF585858),
+              ),
             ),
-          ),
-          AdvancedSwitch(
-            controller: _switchController,
-            activeColor: AppColors.Primary,
-            inactiveColor: AppColors.LightGray,
-            width: 48,
-            height: 26,
-          ),
-        ],
+            IgnorePointer(
+              child: AdvancedSwitch(
+                controller: _switchController,
+                activeColor: AppColors.Primary,
+                inactiveColor: AppColors.LightGray,
+                width: 48,
+                height: 26,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
