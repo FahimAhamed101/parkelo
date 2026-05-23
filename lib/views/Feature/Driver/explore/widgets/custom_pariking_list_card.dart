@@ -1,11 +1,10 @@
 import 'dart:ui';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import 'package:parkealo/views/base/AppButton/appButton.dart';
 import '../../../../../helpers/route.dart';
 import '../../../../base/AppText/appText.dart';
 
-class CustomParkingListCard extends StatelessWidget {
+class CustomParkingListCard extends StatefulWidget {
   final String imageUrl;
   final String title;
   final String subtitle;
@@ -14,6 +13,7 @@ class CustomParkingListCard extends StatelessWidget {
   final String price;
   final List<String> tags;
   final bool showFavoriteIcon;
+  final bool initialFavorited;
 
   const CustomParkingListCard({
     super.key,
@@ -25,7 +25,43 @@ class CustomParkingListCard extends StatelessWidget {
     required this.price,
     this.tags = const [],
     this.showFavoriteIcon = true,
+    this.initialFavorited = false,
   });
+
+  @override
+  State<CustomParkingListCard> createState() => _CustomParkingListCardState();
+}
+
+class _CustomParkingListCardState extends State<CustomParkingListCard>
+    with SingleTickerProviderStateMixin {
+  late bool _isFavorited;
+  late AnimationController _heartController;
+  late Animation<double> _heartScale;
+
+  @override
+  void initState() {
+    super.initState();
+    _isFavorited = widget.initialFavorited;
+    _heartController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 200),
+    );
+    _heartScale = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.35), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.35, end: 1.0), weight: 50),
+    ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _heartController.dispose();
+    super.dispose();
+  }
+
+  void _toggleFavorite() {
+    setState(() => _isFavorited = !_isFavorited);
+    _heartController.forward(from: 0);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -54,7 +90,7 @@ class CustomParkingListCard extends StatelessWidget {
                   topRight: Radius.circular(16),
                 ),
                 child: Image.network(
-                  imageUrl,
+                  widget.imageUrl,
                   height: 150,
                   width: double.infinity,
                   fit: BoxFit.cover,
@@ -84,17 +120,44 @@ class CustomParkingListCard extends StatelessWidget {
                   ),
                 ),
               ),
-              if (showFavoriteIcon)
+              if (widget.showFavoriteIcon)
                 Positioned(
                   top: 12,
                   right: 12,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
+                  child: GestureDetector(
+                    onTap: _toggleFavorite,
+                    child: AnimatedBuilder(
+                      animation: _heartScale,
+                      builder: (context, child) => Transform.scale(
+                        scale: _heartScale.value,
+                        child: child,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: _isFavorited
+                              ? const Color(0xFFE91E63).withOpacity(0.12)
+                              : Colors.white.withOpacity(0.9),
+                          shape: BoxShape.circle,
+                        ),
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 200),
+                          transitionBuilder: (child, animation) => ScaleTransition(
+                            scale: animation,
+                            child: child,
+                          ),
+                          child: Icon(
+                            _isFavorited ? Icons.favorite : Icons.favorite_border,
+                            key: ValueKey(_isFavorited),
+                            size: 22,
+                            color: _isFavorited
+                                ? const Color(0xFFE91E63)
+                                : Colors.black87,
+                          ),
+                        ),
+                      ),
                     ),
-                    child: const Icon(Icons.favorite_border, size: 22, color: Colors.black87),
                   ),
                 ),
             ],
@@ -105,21 +168,21 @@ class CustomParkingListCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  title,
+                  widget.title,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
                 const SizedBox(height: 4),
                 AppText(
-                  subtitle,
+                  widget.subtitle,
                   fontSize: 12,
                   color: Colors.grey.shade600,
                 ),
-                if (tags.isNotEmpty) const SizedBox(height: 12),
-                if (tags.isNotEmpty)
+                if (widget.tags.isNotEmpty) const SizedBox(height: 12),
+                if (widget.tags.isNotEmpty)
                   Row(
-                    children: tags.map((tag) {
+                    children: widget.tags.map((tag) {
                       return Container(
                         margin: const EdgeInsets.only(right: 8),
                         padding: const EdgeInsets.symmetric(
@@ -147,13 +210,13 @@ class CustomParkingListCard extends StatelessWidget {
                     const Icon(Icons.star, color: Colors.orange, size: 16),
                     const SizedBox(width: 6),
                     AppText(
-                      "$rating ",
+                      "${widget.rating} ",
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),
                     AppText(
-                      reviews,
+                      widget.reviews,
                       fontSize: 12,
                       color: Colors.grey.shade500,
                     ),
@@ -166,7 +229,7 @@ class CustomParkingListCard extends StatelessWidget {
                     Row(
                       children: [
                         AppText(
-                          price,
+                          widget.price,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
@@ -180,7 +243,10 @@ class CustomParkingListCard extends StatelessWidget {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Get.toNamed(AppRoutes.parkingDetailsScreen, arguments: {'fromFavorites': !showFavoriteIcon});
+                        Get.toNamed(
+                          AppRoutes.parkingDetailsScreen,
+                          arguments: {'fromFavorites': !widget.showFavoriteIcon},
+                        );
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -207,3 +273,4 @@ class CustomParkingListCard extends StatelessWidget {
     );
   }
 }
+

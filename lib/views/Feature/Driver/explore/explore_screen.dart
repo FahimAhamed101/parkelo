@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:get/get.dart';
+import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
 import '../../../base/AppText/appText.dart';
 import '../../../base/CustomTextfield/CustomTextfield.dart';
@@ -16,7 +18,7 @@ class ExploreScreen extends StatefulWidget {
 class _ExploreScreenState extends State<ExploreScreen> {
 
   final TextEditingController searchController = TextEditingController();
-  int _selectedCategoryIndex = 0;
+  final Set<int> _selectedCategoryIndices = {};
   final List<String> _categories = ["Private", "Camera", "Covered", "Person"];
   
   final List<Map<String, dynamic>> dummyParkingList = [
@@ -122,7 +124,7 @@ class _ExploreScreenState extends State<ExploreScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: (){},
+                onTap: () => Get.toNamed(AppRoutes.notificationScreen),
                 child: SvgPicture.asset(
                   "assets/icons/notification.svg",
                   width: 38,
@@ -168,10 +170,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
             child: GestureDetector(
               onTap: () {
                 setState(() {
-                  _selectedCategoryIndex = index;
+                  if (_selectedCategoryIndices.contains(index)) {
+                    _selectedCategoryIndices.remove(index);
+                  } else {
+                    _selectedCategoryIndices.add(index);
+                  }
                 });
               },
-              child: _buildCategoryChip(_categories[index], _selectedCategoryIndex == index),
+              child: _buildCategoryChip(_categories[index], _selectedCategoryIndices.contains(index)),
             ),
           );
         }),

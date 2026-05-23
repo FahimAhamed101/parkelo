@@ -47,13 +47,13 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
       body: _pages[selectedIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFFE7F4F6),
+          color: const Color(0xFFFFFFFF),
           borderRadius: BorderRadius.only(
-            topLeft: Radius.circular(16.r),
-            topRight: Radius.circular(16.r),
+            topLeft: Radius.circular(0.r),
+            topRight: Radius.circular(0.r),
           ),
           border: const Border(
-            top: BorderSide(color: Color(0xFFE3E6F0), width: 1),
+            top: BorderSide(color: Color(0xFFEAEAEA), width: 1.5),
           ),
         ),
         height: MediaQuery.of(context).size.height * 0.12,
@@ -62,7 +62,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
           type: BottomNavigationBarType.fixed,
           currentIndex: selectedIndex,
           selectedItemColor: AppColors.DarkBlue,
-          unselectedItemColor: AppColors.bgPrimary,
+          unselectedItemColor: AppColors.DarkGray,
           selectedLabelStyle: GoogleFonts.inter(
             fontWeight: FontWeight.w500,
             fontSize: 12,
@@ -102,7 +102,7 @@ class _BottomNavScreenState extends State<BottomNavScreen> {
         height: 22,
         width: 22,
         colorFilter: const ColorFilter.mode(
-          AppColors.bgPrimary,
+          AppColors.DarkGray,
           BlendMode.srcIn,
         ),
       ),

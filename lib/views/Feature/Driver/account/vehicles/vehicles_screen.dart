@@ -60,7 +60,7 @@ class VehiclesScreen extends StatelessWidget {
                   ),
                   Column(
                     children: [
-                      _buildActionButton("Edit", Icons.edit, AppColors.Primary, AppColors.LightBlue, () {}),
+                      _buildActionButton("Edit", Icons.edit, AppColors.Primary, AppColors.LightBlue, () => Get.toNamed(AppRoutes.editVehicleScreen)),
                       const SizedBox(height: 8),
                       _buildActionButton("Delete", Icons.delete_outline, AppColors.Red, AppColors.LightRed, () {}),
                     ],

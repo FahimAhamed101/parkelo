@@ -88,7 +88,6 @@ class _AccountScreenState extends State<AccountScreen> {
                   title: "Vehicles",
                   onTap: () => Get.toNamed(AppRoutes.vehiclesScreen),
                 ),
-
                 _buildMenuTile(
                   icon: "assets/icons/payment.svg",
                   title: "Payment",
@@ -236,7 +235,7 @@ class _AccountScreenState extends State<AccountScreen> {
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 08),
         child: Row(
           children: [
             SvgPicture.asset(
@@ -253,7 +252,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 title,
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
-                color: titleColor ?? AppColors.Black,
+                color: Color(0xFF585858),
               ),
             ),
             const Icon(
@@ -273,7 +272,7 @@ class _AccountScreenState extends State<AccountScreen> {
     required String title,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
           SvgPicture.asset(
@@ -287,7 +286,7 @@ class _AccountScreenState extends State<AccountScreen> {
               title,
               fontSize: 16,
               fontWeight: FontWeight.w500,
-              color: AppColors.Black,
+              color: Color(0xFF585858),
             ),
           ),
           AdvancedSwitch(

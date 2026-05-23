@@ -7,20 +7,21 @@ import '../../../../base/CustomTextfield/CustomTextfield.dart';
 import '../../../../base/AppButton/appButton.dart';
 import '../../../../base/CustomDropdown/vehicle_picker_field.dart';
 
-class AddVehicleScreen extends StatefulWidget {
-  const AddVehicleScreen({super.key});
+class EditVehicleScreen extends StatefulWidget {
+  const EditVehicleScreen({super.key});
 
   @override
-  State<AddVehicleScreen> createState() => _AddVehicleScreenState();
+  State<EditVehicleScreen> createState() => _EditVehicleScreenState();
 }
 
-class _AddVehicleScreenState extends State<AddVehicleScreen> {
+class _EditVehicleScreenState extends State<EditVehicleScreen> {
   String selectedType = 'Sedan';
-  String? selectedBrand;
-  String? selectedColor;
-  final TextEditingController licenseController = TextEditingController();
-  final TextEditingController modelController = TextEditingController();
-  final TextEditingController yearController = TextEditingController();
+  String? selectedBrand = 'Toyota';
+  String? selectedColor = 'White';
+
+  final TextEditingController licenseController = TextEditingController(text: "A123456");
+  final TextEditingController modelController = TextEditingController(text: "Corolla");
+  final TextEditingController yearController = TextEditingController(text: "2020");
   final TextEditingController notesController = TextEditingController();
 
   static const List<String> _brands = [
@@ -33,7 +34,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
     'White', 'Black', 'Silver', 'Gray', 'Red', 'Blue',
     'Green', 'Yellow', 'Orange', 'Brown', 'Beige', 'Other',
   ];
-  
+
   final List<Map<String, dynamic>> vehicleTypes = [
     {"name": "Sedan", "icon": Icons.directions_car},
     {"name": "SUV / 4x4", "icon": Icons.directions_car_filled},
@@ -56,7 +57,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F8F4),
-      appBar: const CustomAppBar(title: "Add Vehicles"),
+      appBar: const CustomAppBar(title: "Edit Vehicle"),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
@@ -92,7 +93,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           color: Colors.black.withOpacity(0.04),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
-                        )
+                        ),
                       ],
                     ),
                     child: Column(
@@ -105,7 +106,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                           fontSize: 11,
                           color: isSelected ? AppColors.Primary : Colors.grey.shade600,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                        )
+                        ),
                       ],
                     ),
                   ),
@@ -135,8 +136,8 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             _buildLabel("MODEL *"),
             const SizedBox(height: 8),
             CustomTextField(
-               controller: modelController,
-               hintText: "Ej: Corolla, Civic, Tucson...",
+              controller: modelController,
+              hintText: "Ej: Corolla, Civic, Tucson...",
             ),
             const SizedBox(height: 16),
             Row(
@@ -149,7 +150,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                       const SizedBox(height: 8),
                       CustomTextField(controller: yearController, hintText: "Ej: 2022"),
                     ],
-                  )
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -165,7 +166,7 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
                         onSelected: (v) => setState(() => selectedColor = v),
                       ),
                     ],
-                  )
+                  ),
                 ),
               ],
             ),
@@ -173,15 +174,15 @@ class _AddVehicleScreenState extends State<AddVehicleScreen> {
             _buildLabel("NOTES (OPTIONAL)"),
             const SizedBox(height: 8),
             CustomTextField(
-               controller: notesController,
-               hintText: "Ej: Has a sticker on the windshield, leather seats...",
-               maxLines: 4,
+              controller: notesController,
+              hintText: "Ej: Has a sticker on the windshield, leather seats...",
+              maxLines: 4,
             ),
             const SizedBox(height: 8),
             AppText("Special characteristics, observations for the host", fontSize: 11, color: AppColors.Primary),
             const SizedBox(height: 32),
             AppButton(
-              text: "Add Save",
+              text: "Save Changes",
               onTap: () => Get.back(),
             ),
             const SizedBox(height: 24),

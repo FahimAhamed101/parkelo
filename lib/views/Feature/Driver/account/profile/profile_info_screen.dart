@@ -37,22 +37,9 @@ class ProfileInfoScreen extends StatelessWidget {
                     ),
                     child: const CircleAvatar(
                       radius: 45,
-                      backgroundImage: NetworkImage("https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=200&auto=format&fit=crop"),
+                      backgroundImage: NetworkImage("https://plus.unsplash.com/premium_photo-1664474619075-644dd191935f?q=80&w=1169&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"),
                     ),
                   ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: AppColors.Primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 2),
-                      ),
-                      child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14),
-                    ),
-                  )
                 ],
               ),
             ),
@@ -72,7 +59,7 @@ class ProfileInfoScreen extends StatelessWidget {
             _buildInfoCard(
               "Personal Information",
               [
-                _buildInfoRow(Icons.person_outline, "Full Name", "Rokey Mahmud"),
+                _buildInfoRow(Icons.person_outline, "Full Name", "Shahin Alam"),
               ]
             ),
             const SizedBox(height: 16),

@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import '../views/Feature/Driver/account/account_screen.dart';
+import '../views/Feature/Driver/account/notification_screen.dart';
 import '../views/Feature/Driver/account/common/contact_us_screen.dart';
 import '../views/Feature/Driver/account/common/faq_screen.dart';
 import '../views/Feature/Driver/account/common/help_support_screen.dart';
@@ -20,8 +21,11 @@ import '../views/Feature/Authentication/sign_up_screen.dart';
 import '../views/Feature/Authentication/email_verification_screen.dart';
 import '../views/Feature/Driver/explore/explore_screen.dart';
 import '../views/Feature/Driver/explore/parking_details_screen.dart';
+import '../views/Feature/Driver/explore/confirm_pay_screen.dart';
+import '../views/Feature/Driver/explore/booking_confirmed_screen.dart';
 import '../views/Feature/Driver/account/vehicles/vehicles_screen.dart';
 import '../views/Feature/Driver/account/vehicles/add_vehicle_screen.dart';
+import '../views/Feature/Driver/account/vehicles/edit_vehicle_screen.dart';
 import '../views/Feature/Driver/account/payment/payment_screen.dart';
 import '../views/Feature/Driver/account/profile/profile_info_screen.dart';
 import '../views/Feature/Driver/account/profile/edit_profile_screen.dart';
@@ -41,14 +45,18 @@ class AppRoutes {
   static const String bottomNavScreen = "/bottom_nav";
   static const String exploreScreen = "/explore_screen";
   static const String parkingDetailsScreen = "/parking_details_screen";
+  static const String confirmPayScreen = "/confirm_pay_screen";
+  static const String bookingConfirmedScreen = "/booking_confirmed_screen";
   static const String bookingsScreen = "/bookings_screen";
   static const String scanningScreen = "/scanning_screen";
   static const String extendTimeScreen = "/extend_time_screen";
   static const String checkoutScreen = "/checkout_screen";
   static const String favoritesScreen = "/favorites_screen";
   static const String accountScreen = "/account_screen";
+  static const String notificationScreen = "/notification_screen";
   static const String vehiclesScreen = "/vehicles_screen";
   static const String addVehicleScreen = "/add_vehicle_screen";
+  static const String editVehicleScreen = "/edit_vehicle_screen";
   static const String paymentScreen = "/payment_screen";
   static const String profileInfoScreen = "/profile_info_screen";
   static const String editProfileScreen = "/edit_profile_screen";
@@ -73,14 +81,18 @@ class AppRoutes {
     GetPage(name: bottomNavScreen, page: () => const BottomNavScreen()),
     GetPage(name: exploreScreen, page: () => const ExploreScreen()),
     GetPage(name: parkingDetailsScreen, page: () => const ParkingDetailsScreen()),
+    GetPage(name: confirmPayScreen, page: () => const ConfirmPayScreen()),
+    GetPage(name: bookingConfirmedScreen, page: () => const BookingConfirmedScreen()),
     GetPage(name: bookingsScreen, page: () => const BookingsScreen()),
     GetPage(name: scanningScreen, page: () => const ScanningScreen()),
     GetPage(name: extendTimeScreen, page: () => const ExtendTimeScreen()),
     GetPage(name: checkoutScreen, page: () => CheckoutScreen(totalSeconds: Get.arguments as int)),
     GetPage(name: favoritesScreen, page: () => const FavoritesScreen()),
     GetPage(name: accountScreen, page: () => const AccountScreen()),
+    GetPage(name: notificationScreen, page: () => const NotificationScreen()),
     GetPage(name: vehiclesScreen, page: () => const VehiclesScreen()),
     GetPage(name: addVehicleScreen, page: () => const AddVehicleScreen()),
+    GetPage(name: editVehicleScreen, page: () => const EditVehicleScreen()),
     GetPage(name: paymentScreen, page: () => const PaymentScreen()),
     GetPage(name: profileInfoScreen, page: () => const ProfileInfoScreen()),
     GetPage(name: editProfileScreen, page: () => const EditProfileScreen()),

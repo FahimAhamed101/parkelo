@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
 import '../../../base/AppText/appText.dart';
 
@@ -14,6 +16,42 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
   String selectedDuration = '2h';
   bool bookForAnother = true;
   bool insuranceActive = true;
+  DateTime selectedDate = DateTime.now();
+  String? selectedTime;
+
+  bool get _isToday {
+    final now = DateTime.now();
+    return selectedDate.year == now.year &&
+        selectedDate.month == now.month &&
+        selectedDate.day == now.day;
+  }
+
+  String get _formattedDate {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return '${months[selectedDate.month - 1]} ${selectedDate.day}, ${selectedDate.year}';
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: selectedDate,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 90)),
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: AppColors.Primary,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+    if (picked != null) setState(() => selectedDate = picked);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +99,99 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
         ),
       ),
     );
+  }
+
+  void _onBookTap() {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEEF2FF),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.warning_amber_rounded, color: AppColors.DarkBlue, size: 32),
+              ),
+              const SizedBox(height: 16),
+              AppText("Security Warning", fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
+              const SizedBox(height: 12),
+              Text(
+                "Remember not to leave valuables inside your vehicle. Parkealo App is not responsible for the loss of items or damage to the vehicle.",
+                style: GoogleFonts.inter(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  color: Color(0xFF94A3B8),
+                ),
+                textAlign: TextAlign.justify,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(ctx),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: AppColors.Primary, width: 1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: AppText("Cancel", fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.Primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {
+                        Navigator.pop(ctx);
+                        Get.toNamed(AppRoutes.confirmPayScreen);
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.Primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        alignment: Alignment.center,
+                        child: AppText("Understood", fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String get _endTime {
+    final time = selectedTime ?? '10:30 AM';
+    final parts = time.split(':');
+    if (parts.length < 2) return time;
+    int hour = int.tryParse(parts[0]) ?? 10;
+    final minPart = parts[1].replaceAll(RegExp(r'[^0-9]'), '');
+    final isPm = time.contains('PM');
+    if (isPm && hour != 12) hour += 12;
+    final hours = int.tryParse(selectedDuration.replaceAll('h', '')) ?? 2;
+    final endHour = (hour + hours) % 24;
+    final endMin = int.tryParse(minPart) ?? 0;
+    final endPeriod = endHour >= 12 ? 'PM' : 'AM';
+    final displayHour = endHour > 12 ? endHour - 12 : (endHour == 0 ? 12 : endHour);
+    return '$displayHour:${endMin.toString().padLeft(2, '0')} $endPeriod';
   }
 
   Widget _buildTopImage() {
@@ -263,27 +394,37 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       children: [
         AppText("DATE", fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
         const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD9EFFC),
-                  borderRadius: BorderRadius.circular(4),
+        GestureDetector(
+          onTap: _pickDate,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Row(
+              children: [
+                if (_isToday)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFD9EFFC),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: AppText("TODAY", fontSize: 11, color: AppColors.Primary, fontWeight: FontWeight.bold),
+                  ),
+                if (_isToday) const SizedBox(width: 12),
+                Expanded(
+                  child: AppText(
+                    _isToday ? "Today" : _formattedDate,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                child: AppText("TODAY", fontSize: 11, color: AppColors.Primary, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: AppText("Today", fontSize: 14, fontWeight: FontWeight.w500)),
-              const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
-            ],
+                const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+              ],
+            ),
           ),
         ),
       ],
@@ -291,14 +432,30 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
   }
 
   Widget _buildTimeSelector() {
+    final times = ["7:00 AM", "7:30 AM", "8:00 AM", "8:30 AM"];
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildChip("7:00 AM", false, isWide: true),
-        _buildChip("7:30 AM", false, isWide: true),
-        _buildChip("8:00 AM", false, isWide: true),
-        _buildChip("8:30 AM", false, isWide: true),
-      ],
+      children: times.map((t) => GestureDetector(
+        onTap: () => setState(() => selectedTime = t),
+        child: Container(
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selectedTime == t ? AppColors.Primary : Colors.grey.shade200,
+              width: selectedTime == t ? 1.5 : 1,
+            ),
+          ),
+          child: AppText(
+            t,
+            fontSize: 11,
+            color: selectedTime == t ? AppColors.Primary : Colors.grey.shade800,
+            fontWeight: selectedTime == t ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      )).toList(),
     );
   }
 
@@ -382,12 +539,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
           ),
         ),
         const SizedBox(width: 16),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeColor: Colors.white,
-          activeTrackColor: AppColors.Primary,
-        ),
+        _AdvancedSwitch(value: value, onChanged: onChanged),
       ],
     );
   }
@@ -447,7 +599,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
         children: [
           AppText("RD\$150 / hour", fontSize: 18, fontWeight: FontWeight.bold),
           GestureDetector(
-            onTap: () {},
+            onTap: () => _onBookTap(),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               decoration: BoxDecoration(
@@ -463,6 +615,54 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
             ),
           )
         ],
+      ),
+    );
+  }
+}
+
+class _AdvancedSwitch extends StatelessWidget {
+  final bool value;
+  final Function(bool) onChanged;
+
+  const _AdvancedSwitch({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeInOut,
+        width: 50,
+        height: 28,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(14),
+          color: value ? AppColors.Primary : Colors.grey.shade300,
+          boxShadow: [
+            BoxShadow(
+              color: value ? AppColors.Primary.withOpacity(0.3) : Colors.black.withOpacity(0.08),
+              blurRadius: 6,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            margin: const EdgeInsets.all(3),
+            width: 22,
+            height: 22,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
