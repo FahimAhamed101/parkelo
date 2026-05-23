@@ -80,11 +80,12 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
             child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 26),
           ),
         ),
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 10,
-          right: 20,
-          child: const Icon(Icons.favorite_border, color: Colors.white, size: 26,),
-        )
+        if (!(Get.arguments != null && Get.arguments['fromFavorites'] == true))
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            right: 20,
+            child: const Icon(Icons.favorite_border, color: Colors.white, size: 26,),
+          )
       ],
     );
   }

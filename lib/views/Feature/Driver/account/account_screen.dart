@@ -86,13 +86,13 @@ class _AccountScreenState extends State<AccountScreen> {
                 _buildMenuTile(
                   icon: "assets/icons/vechicles.svg",
                   title: "Vehicles",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.vehiclesScreen),
                 ),
 
                 _buildMenuTile(
                   icon: "assets/icons/payment.svg",
                   title: "Payment",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.paymentScreen),
                 ),
               ],
             ),
@@ -113,7 +113,7 @@ class _AccountScreenState extends State<AccountScreen> {
                 _buildMenuTile(
                   icon: "assets/icons/profile.svg",
                   title: "Profile Info",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.profileInfoScreen),
                 ),
 
                 _buildSwitchTile(
@@ -139,13 +139,13 @@ class _AccountScreenState extends State<AccountScreen> {
                 _buildMenuTile(
                   icon: "assets/icons/privacyIcon.svg",
                   title: "Privacy Policy",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.privacyPolicyScreen),
                 ),
 
                 _buildMenuTile(
                   icon: "assets/icons/terms&condition.svg",
                   title: "Terms & Condition",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.termsConditionScreen),
                 ),
               ],
             ),
@@ -166,19 +166,19 @@ class _AccountScreenState extends State<AccountScreen> {
                 _buildMenuTile(
                   icon: "assets/icons/refferIcon.svg",
                   title: "Refer Friend",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.inviteFriendScreen),
                 ),
 
                 _buildMenuTile(
                   icon: "assets/icons/notificationIcon.svg",
                   title: "Notification",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.accountSettingsScreen),
                 ),
 
                 _buildMenuTile(
                   icon: "assets/icons/helpIcon.svg",
                   title: "Help & Support",
-                  onTap: () {},
+                  onTap: () => Get.toNamed(AppRoutes.helpSupportScreen),
                 ),
 
                 _buildMenuTile(

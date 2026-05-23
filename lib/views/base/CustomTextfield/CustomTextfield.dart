@@ -23,6 +23,7 @@ class CustomTextField extends StatefulWidget {
   final AutovalidateMode? autovalidateMode;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSubmitted;
+  final VoidCallback? onSuffixTap;
   final int? maxLines;
   final bool? enabled;
   final String obscure;
@@ -50,6 +51,7 @@ class CustomTextField extends StatefulWidget {
     this.maxLines,
     this.enabled,
     this.onSubmitted,
+    this.onSuffixTap,
     this.obscure = '*',
     this.borderRadius,
   });
@@ -134,7 +136,12 @@ class _CustomTextFieldState extends State<CustomTextField> {
             color: suffixColor,
           ),
         )
-            : _buildIcon(widget.suffixIcon, color: suffixColor),
+            : widget.onSuffixTap != null
+                ? GestureDetector(
+                    onTap: widget.onSuffixTap,
+                    child: _buildIcon(widget.suffixIcon, color: suffixColor),
+                  )
+                : _buildIcon(widget.suffixIcon, color: suffixColor),
 
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(widget.borderRadius ?? 12.r),

@@ -9,12 +9,14 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
   final VoidCallback? onBackTap;
   final bool showBackButton;
+  final Widget? action;
 
   const CustomAppBar({
     super.key,
     required this.title,
     this.onBackTap,
     this.showBackButton = true,
+    this.action,
   });
 
   @override
@@ -74,8 +76,8 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                 ),
               ),
 
-              // Spacer for balance
-              const SizedBox(width: 24),
+              // Spacer for balance or Action widget
+              action ?? const SizedBox(width: 48),
             ],
           ),
         ),

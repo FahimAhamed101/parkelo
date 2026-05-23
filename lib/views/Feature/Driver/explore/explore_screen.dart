@@ -4,6 +4,7 @@ import '../../../../utils/appColor/app_colors.dart';
 import '../../../base/AppText/appText.dart';
 import '../../../base/CustomTextfield/CustomTextfield.dart';
 import 'widgets/custom_pariking_list_card.dart';
+import 'widgets/filter_bottom_sheet.dart';
 
 class ExploreScreen extends StatefulWidget {
   const ExploreScreen({super.key});
@@ -141,6 +142,14 @@ class _ExploreScreenState extends State<ExploreScreen> {
             contentPaddingVertical: 12,
             prefixIcon: "assets/icons/searchIcon.svg",
             suffixIcon: "assets/icons/filterIcon.svg",
+            onSuffixTap: () {
+              showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (_) => const FilterBottomSheet(),
+              );
+            },
           ),
 
         ],

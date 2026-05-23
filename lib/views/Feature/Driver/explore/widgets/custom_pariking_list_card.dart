@@ -13,6 +13,7 @@ class CustomParkingListCard extends StatelessWidget {
   final String reviews;
   final String price;
   final List<String> tags;
+  final bool showFavoriteIcon;
 
   const CustomParkingListCard({
     super.key,
@@ -23,6 +24,7 @@ class CustomParkingListCard extends StatelessWidget {
     required this.reviews,
     required this.price,
     this.tags = const [],
+    this.showFavoriteIcon = true,
   });
 
   @override
@@ -82,18 +84,19 @@ class CustomParkingListCard extends StatelessWidget {
                   ),
                 ),
               ),
-              Positioned(
-                top: 12,
-                right: 12,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.9),
-                    shape: BoxShape.circle,
+              if (showFavoriteIcon)
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.favorite_border, size: 22, color: Colors.black87),
                   ),
-                  child: const Icon(Icons.favorite_border, size: 22, color: Colors.black87),
                 ),
-              ),
             ],
           ),
           Padding(
@@ -177,7 +180,7 @@ class CustomParkingListCard extends StatelessWidget {
                     ),
                     GestureDetector(
                       onTap: () {
-                        Get.toNamed(AppRoutes.parkingDetailsScreen);
+                        Get.toNamed(AppRoutes.parkingDetailsScreen, arguments: {'fromFavorites': !showFavoriteIcon});
                       },
                       child: Container(
                         padding: const EdgeInsets.symmetric(
