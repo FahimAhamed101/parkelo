@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:get/get.dart';
 
 const _primaryBlue = Color(0xFF1556B7);
 const _actionBlue = Color(0xFF0A8BFF);
@@ -38,10 +39,7 @@ class IncomeWithdrawalsPage extends StatelessWidget {
                     _SectionHeader(
                       title: 'Withdrawal account',
                       trailing: _AddAccountButton(
-                        onTap: () => Navigator.pushNamed(
-                          context,
-                          '/add-withdrawal-account',
-                        ),
+                        onTap: () => Get.toNamed('/add-withdrawal-account'),
                       ),
                     ),
                     const SizedBox(height: 8),
@@ -219,7 +217,7 @@ class _WithdrawalButton extends StatelessWidget {
       height: 31,
       child: ElevatedButton(
         onPressed: () {
-          Navigator.pushNamed(context, '/add-withdrawal-account');
+          Get.toNamed('/add-withdrawal-account');
         },
         style: ElevatedButton.styleFrom(
           backgroundColor: _actionBlue,
@@ -232,7 +230,7 @@ class _WithdrawalButton extends StatelessWidget {
         child: const FittedBox(
           fit: BoxFit.scaleDown,
           child: Text(
-            'Request withdrawal — RD\$12,450',
+            'Request withdrawal - RD\$12,450',
             maxLines: 1,
             style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
           ),

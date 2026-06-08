@@ -1,304 +1,264 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-const _primaryBlue = Color(0xFF1556B7);
-const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
-const _ink = Color(0xFF111827);
+import '../services/host_publish_flow_service.dart';
+import '../widgets/publish_parking_flow.dart';
+import 'publish_parking_submitted_page.dart';
 
-class PublishParkingReviewPage extends StatelessWidget {
-  const PublishParkingReviewPage({super.key});
+class PublishParkingReviewPage extends StatefulWidget {
+  const PublishParkingReviewPage({
+    super.key,
+    this.steps = PublishFlowHeader.defaultSteps,
+    this.currentStep = 6,
+  });
 
-  static const _tabs = ['Location', 'Details', 'Spaces', 'Services', 'Photos'];
+  final List<String> steps;
+  final int currentStep;
+
+  @override
+  State<PublishParkingReviewPage> createState() =>
+      _PublishParkingReviewPageState();
+}
+
+class _PublishParkingReviewPageState extends State<PublishParkingReviewPage> {
+  late Future<Map<String, dynamic>> _reviewFuture;
+  bool _submitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _reviewFuture = HostPublishFlowService.instance.fetchReview();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: _pageBg,
+    return FutureBuilder<Map<String, dynamic>>(
+      future: _reviewFuture,
+      builder: (context, snapshot) {
+        final parking =
+            snapshot.data?['parking'] as Map<String, dynamic>? ??
+            HostPublishFlowService.instance.parking ??
+            const {};
+        final next =
+            snapshot.data?['next'] as Map<String, dynamic>? ?? const {};
+        final nextItems = (next['items'] as List<dynamic>? ?? const [])
+            .cast<String>();
+
+        return PublishFlowScaffold(
+          currentStep: widget.currentStep,
+          steps: widget.steps,
+          stepTitle: widget.currentStep == widget.steps.length - 1
+              ? 'Review'
+              : widget.steps[widget.currentStep],
+          showBackAction: true,
+          continueLabel: 'Publish parking',
+          continueColor: PublishFlowColors.green,
+          onContinue: _submitting ? () {} : _submit,
+          child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ParkingSummaryCard(parking: parking),
+                const SizedBox(height: 14),
+                _NextStepsCard(
+                  title: next['title'] as String? ?? 'What happens next?',
+                  items: nextItems,
+                ),
+                if (_submitting) ...[
+                  const SizedBox(height: 16),
+                  const Center(child: CircularProgressIndicator()),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    try {
+      await HostPublishFlowService.instance.submit();
+      if (!mounted) return;
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const PublishParkingSubmittedPage()),
+      );
+    } catch (error) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+}
+
+class _ParkingSummaryCard extends StatelessWidget {
+  const _ParkingSummaryCard({required this.parking});
+
+  final Map<String, dynamic> parking;
+
+  @override
+  Widget build(BuildContext context) {
+    final address = _fullAddress(parking);
+    final spaces = parking['spaces'] as Map<String, dynamic>? ?? const {};
+    final services = (parking['services'] as List<dynamic>? ?? const [])
+        .map((item) => item is Map<String, dynamic> ? item['code'] : item)
+        .whereType<String>()
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2EAF5)),
+        boxShadow: [
+          BoxShadow(
+            color: PublishFlowColors.blue.withValues(alpha: 0.06),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            _PublishHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(10, 16, 10, 24),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              const ParkingPSquare(size: 48),
+              const SizedBox(width: 12),
+              Expanded(
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        for (var i = 0; i < _tabs.length; i++) ...[
-                          Expanded(
-                            child: _StepPill(
-                              label: _tabs[i],
-                              isSelected: i == 0,
-                            ),
-                          ),
-                          if (i != _tabs.length - 1) const SizedBox(width: 5),
-                        ],
-                      ],
+                    Text(
+                      parking['name'] as String? ?? 'Parking draft',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PublishFlowColors.ink,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    const _SummaryCard(),
-                    const SizedBox(height: 9),
-                    const _NextStepsCard(),
-                    const SizedBox(height: 33),
-                    SizedBox(
-                      height: 30,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pushNamed(context, '/qr_page');
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _actionBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                        ),
-                        child: const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      address,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: PublishFlowColors.muted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.25,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PublishHeader extends StatelessWidget {
-  const _PublishHeader({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 17),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 44,
-                    height: 42,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Publish parking',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44),
-              ],
-            ),
+            ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StepPill extends StatelessWidget {
-  const _StepPill({required this.label, required this.isSelected});
-
-  final String label;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 18,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isSelected ? _primaryBlue : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _primaryBlue, width: 1),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: Text(
-            label,
-            maxLines: 1,
-            style: TextStyle(
-              color: isSelected ? Colors.white : _ink,
-              fontSize: 8.2,
-              fontWeight: FontWeight.w800,
-            ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFE2EAF5)),
+          const SizedBox(height: 10),
+          _SummaryRow(
+            label: 'Type',
+            value:
+                ((parking['parkingType'] as String?) ?? 'public') == 'private'
+                ? 'Private'
+                : 'Public',
+            leadingIcon: Icons.location_city_rounded,
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(13, 15, 13, 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: const Column(
-        children: [
-          _ParkingHeader(),
-          SizedBox(height: 20),
-          _SummaryRow(label: 'Type', value: 'Public'),
-          _SummaryRow(label: 'Sector', value: 'Zone Colonial'),
-          _SummaryRow(label: 'Spaces', value: '10 spaces \u2022 1 level'),
-          _SummaryRow(label: 'Schedule', value: '24 hours'),
-          _SummaryRow(label: 'Contact', value: 'AZ'),
-          _SummaryRow(label: 'Services', value: '0 active'),
+          const _SummaryDivider(),
+          _SummaryRow(
+            label: 'Sector',
+            value:
+                parking['sector'] as String? ??
+                parking['zone'] as String? ??
+                '-',
+          ),
+          const _SummaryDivider(),
+          _SummaryRow(
+            label: 'Spaces',
+            value:
+                '${spaces['total'] ?? 0} spaces - ${spaces['floors'] ?? 1} level${(spaces['floors'] ?? 1) == 1 ? '' : 's'}',
+          ),
+          const _SummaryDivider(),
+          _SummaryRow(
+            label: 'Schedule',
+            value: services.contains('open_24_7') ? '24 hours' : 'Specific',
+          ),
+          const _SummaryDivider(),
+          _SummaryRow(
+            label: 'Contact',
+            value:
+                (parking['host'] as Map<String, dynamic>?)?['contactPhone']
+                    as String? ??
+                '-',
+          ),
+          const _SummaryDivider(),
+          _SummaryRow(label: 'Services', value: '${services.length} active'),
         ],
       ),
     );
   }
-}
 
-class _ParkingHeader extends StatelessWidget {
-  const _ParkingHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Container(
-          width: 34,
-          height: 15,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: _primaryBlue,
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: const Text(
-            'Parkealo',
-            maxLines: 1,
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 5.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        const Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'a',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: _ink,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
-              SizedBox(height: 3),
-              Text(
-                'Av. Winston Churchill 1099, Piantini',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: Color(0xFF9AA6B4),
-                  fontSize: 7.5,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
+  String _fullAddress(Map<String, dynamic> parking) {
+    final address = parking['address'] as Map<String, dynamic>? ?? const {};
+    final parts = [
+      address['line1'],
+      parking['sector'],
+      address['city'],
+    ].whereType<String>().where((value) => value.isNotEmpty).toList();
+    return parts.isEmpty ? 'Address pending' : parts.join(', ');
   }
 }
 
 class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.label, required this.value});
+  const _SummaryRow({
+    required this.label,
+    required this.value,
+    this.leadingIcon,
+  });
 
   final String label;
   final String value;
+  final IconData? leadingIcon;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 28,
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFF2F5F8), width: 1)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Expanded(
             child: Text(
               label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: _ink,
-                fontSize: 7.8,
-                fontWeight: FontWeight.w500,
+                color: PublishFlowColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          if (leadingIcon != null) ...[
+            Icon(leadingIcon, size: 16, color: PublishFlowColors.blue),
+            const SizedBox(width: 6),
+          ],
           Flexible(
             child: Text(
               value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.right,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: _ink,
-                fontSize: 7.8,
-                fontWeight: FontWeight.w700,
+                color: PublishFlowColors.ink,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+                height: 1.2,
               ),
             ),
           ),
@@ -308,39 +268,75 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
+class _SummaryDivider extends StatelessWidget {
+  const _SummaryDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Divider(height: 1, color: Color(0xFFE8EEF8));
+  }
+}
+
 class _NextStepsCard extends StatelessWidget {
-  const _NextStepsCard();
+  const _NextStepsCard({required this.title, required this.items});
+
+  final String title;
+  final List<String> items;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(14, 15, 14, 16),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF7FF),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFD9EEF9)),
+        color: const Color(0xFFF3F8FF),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFC7D8F1)),
       ),
-      child: const Column(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'What happens next?',
-            style: TextStyle(
-              color: _primaryBlue,
-              fontSize: 8.2,
+            title,
+            style: const TextStyle(
+              color: PublishFlowColors.blue,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
-          SizedBox(height: 9),
-          Text(
-            'Your parking will be reviewed by the Parkealo\nteam in a maximum of 2 hours. Once approved,\nit will appear on the map and you can start\nreceiving bookings.',
-            style: TextStyle(
-              color: _primaryBlue,
-              fontSize: 7.2,
-              height: 1.35,
-              fontWeight: FontWeight.w500,
+          const SizedBox(height: 8),
+          for (final item
+              in items.isEmpty
+                  ? const [
+                      'The Parkealo team will review your parking in up to 2 hours.',
+                      'After approval, it will appear on the map and users can reserve it.',
+                    ]
+                  : items) ...[
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 6, right: 8),
+                  child: Icon(
+                    Icons.circle,
+                    size: 6,
+                    color: PublishFlowColors.blue,
+                  ),
+                ),
+                Expanded(
+                  child: Text(
+                    item,
+                    style: const TextStyle(
+                      color: PublishFlowColors.muted,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
+            const SizedBox(height: 6),
+          ],
         ],
       ),
     );

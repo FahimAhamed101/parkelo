@@ -1,8 +1,9 @@
-import 'dart:ui';
-import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../../helpers/route.dart';
-import '../../../../base/AppText/appText.dart';
+import '../../../../../utils/appColor/app_colors.dart';
 
 class CustomParkingListCard extends StatefulWidget {
   final String imageUrl;
@@ -32,245 +33,283 @@ class CustomParkingListCard extends StatefulWidget {
   State<CustomParkingListCard> createState() => _CustomParkingListCardState();
 }
 
-class _CustomParkingListCardState extends State<CustomParkingListCard>
-    with SingleTickerProviderStateMixin {
-  late bool _isFavorited;
-  late AnimationController _heartController;
-  late Animation<double> _heartScale;
+class _CustomParkingListCardState extends State<CustomParkingListCard> {
+  late bool isFavorited;
 
   @override
   void initState() {
     super.initState();
-    _isFavorited = widget.initialFavorited;
-    _heartController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 200),
-    );
-    _heartScale = TweenSequence<double>([
-      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.35), weight: 50),
-      TweenSequenceItem(tween: Tween(begin: 1.35, end: 1.0), weight: 50),
-    ]).animate(CurvedAnimation(parent: _heartController, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _heartController.dispose();
-    super.dispose();
+    isFavorited = widget.initialFavorited;
   }
 
   void _toggleFavorite() {
-    setState(() => _isFavorited = !_isFavorited);
-    _heartController.forward(from: 0);
+    setState(() {
+      isFavorited = !isFavorited;
+    });
+  }
+
+  void _openDetails() {
+    Get.toNamed(
+      AppRoutes.parkingDetailsScreen,
+      arguments: {'fromFavorites': !widget.showFavoriteIcon},
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 16,
-            spreadRadius: 2,
-            offset: const Offset(0, 6),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Stack(
-            children: [
-              ClipRRect(
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(16),
-                  topRight: Radius.circular(16),
-                ),
-                child: Image.network(
-                  widget.imageUrl,
-                  height: 150,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                ),
-              ),
-              Positioned(
-                top: 12,
-                left: 12,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.3),
-                        border: Border.all(color: Colors.white.withOpacity(0.2), width: 0.5),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: AppText(
-                        "2 Floors",
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (widget.showFavoriteIcon)
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: GestureDetector(
-                    onTap: _toggleFavorite,
-                    child: AnimatedBuilder(
-                      animation: _heartScale,
-                      builder: (context, child) => Transform.scale(
-                        scale: _heartScale.value,
-                        child: child,
-                      ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: _isFavorited
-                              ? const Color(0xFFE91E63).withOpacity(0.12)
-                              : Colors.white.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: AnimatedSwitcher(
-                          duration: const Duration(milliseconds: 200),
-                          transitionBuilder: (child, animation) => ScaleTransition(
-                            scale: animation,
-                            child: child,
-                          ),
-                          child: Icon(
-                            _isFavorited ? Icons.favorite : Icons.favorite_border,
-                            key: ValueKey(_isFavorited),
-                            size: 22,
-                            color: _isFavorited
-                                ? const Color(0xFFE91E63)
-                                : Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _openDetails,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        decoration: BoxDecoration(
+          color: AppColors.bg,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+          boxShadow: AppColors.shadow,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
               children: [
-                AppText(
-                  widget.title,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
-                const SizedBox(height: 4),
-                AppText(
-                  widget.subtitle,
-                  fontSize: 12,
-                  color: Colors.grey.shade600,
-                ),
-                if (widget.tags.isNotEmpty) const SizedBox(height: 12),
-                if (widget.tags.isNotEmpty)
-                  Row(
-                    children: widget.tags.map((tag) {
-                      return Container(
-                        margin: const EdgeInsets.only(right: 8),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: const Color(0xFF008CFA)),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: AppText(
-                          tag,
-                          fontSize: 10,
-                          color: const Color(0xFF008CFA),
-                          fontWeight: FontWeight.w500,
-                        ),
-                      );
-                    }).toList(),
+                Container(
+                  height: 138,
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    gradient: AppColors.gradPublic,
                   ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.star, color: Colors.orange, size: 16),
-                    const Icon(Icons.star, color: Colors.orange, size: 16),
-                    const Icon(Icons.star, color: Colors.orange, size: 16),
-                    const Icon(Icons.star, color: Colors.orange, size: 16),
-                    const SizedBox(width: 6),
-                    AppText(
-                      "${widget.rating} ",
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  alignment: Alignment.center,
+                  child: const _ParkingPinLogo(),
+                ),
+                if (widget.showFavoriteIcon)
+                  Positioned(
+                    top: 12,
+                    right: 12,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {
+                        _toggleFavorite();
+                      },
+                      child: Container(
+                        width: 30,
+                        height: 30,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white.withValues(alpha: 0.20),
+                        ),
+                        child: Icon(
+                          isFavorited
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          size: 18,
+                          color: isFavorited
+                              ? AppColors.heartRed
+                              : Colors.white.withValues(alpha: 0.92),
+                        ),
+                      ),
                     ),
-                    AppText(
-                      widget.reviews,
+                  ),
+                Positioned(
+                  right: 12,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 9,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueSky.withValues(alpha: 0.70),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '2 floors',
+                      style: GoogleFonts.nunito(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              height: 3,
+              decoration: const BoxDecoration(gradient: AppColors.gradGreenBar),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(13, 12, 13, 13),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.nunito(
+                            fontSize: 16,
+                            height: 1.15,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.text,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 16,
+                            color: AppColors.text,
+                          ),
+                          const SizedBox(width: 2),
+                          Text(
+                            widget.rating,
+                            style: GoogleFonts.nunito(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.text,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    widget.subtitle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.nunito(
                       fontSize: 12,
-                      color: Colors.grey.shade500,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSub,
+                    ),
+                  ),
+                  if (widget.tags.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: widget.tags.map(_buildTransportTag).toList(),
                     ),
                   ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+                  const SizedBox(height: 11),
+                  const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 10),
+                  Text.rich(
+                    TextSpan(
+                      text: widget.price,
+                      style: GoogleFonts.nunito(
+                        fontSize: 18,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.text,
+                      ),
                       children: [
-                        AppText(
-                          widget.price,
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                        AppText(
-                          " / hour",
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+                        TextSpan(
+                          text: ' / hour',
+                          style: GoogleFonts.nunito(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.textSub,
+                          ),
                         ),
                       ],
                     ),
-                    GestureDetector(
-                      onTap: () {
-                        Get.toNamed(
-                          AppRoutes.parkingDetailsScreen,
-                          arguments: {'fromFavorites': !widget.showFavoriteIcon},
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF008CFA),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: AppText(
-                          "View Details",
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
-                  ],
-                )
-              ],
+                  ),
+                ],
+              ),
             ),
-          )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTransportTag(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+      decoration: BoxDecoration(
+        color: AppColors.blueLt,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: AppColors.blueMid),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.directions_walk_rounded,
+            size: 12,
+            color: AppColors.blue,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            text,
+            style: GoogleFonts.nunito(
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              color: AppColors.blue,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
+class _ParkingPinLogo extends StatelessWidget {
+  const _ParkingPinLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 66,
+      height: 78,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            Icons.location_on_rounded,
+            size: 76,
+            color: AppColors.blueSky.withValues(alpha: 0.96),
+            shadows: [
+              Shadow(
+                color: AppColors.blueNav.withValues(alpha: 0.20),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          Positioned(
+            top: 11,
+            child: Text(
+              'P',
+              style: GoogleFonts.nunito(
+                fontSize: 34,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const Positioned(
+            bottom: 22,
+            child: Icon(
+              Icons.directions_car_filled_rounded,
+              size: 18,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

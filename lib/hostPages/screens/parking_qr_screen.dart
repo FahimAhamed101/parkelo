@@ -4,49 +4,79 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
-class ParkingQrScreen extends StatelessWidget {
+import '../services/host_api_client.dart';
+
+class ParkingQrScreen extends StatefulWidget {
   const ParkingQrScreen({super.key});
 
-  static const _backgroundColor = Color(0xFFEAF6FF);
-  static const _brandBlue = Color(0xFF154A9F);
-  static const _actionBlue = Color(0xFF0796FF);
-  static const _inkColor = Color(0xFF101B3D);
-  static const _mutedText = Color(0xFF8796B4);
+  @override
+  State<ParkingQrScreen> createState() => _ParkingQrScreenState();
+}
 
-  static const _designWidth = 232.0;
-  static const _designHeight = 557.0;
+class _ParkingQrScreenState extends State<ParkingQrScreen> {
+  late Future<Map<String, dynamic>> _qrFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _qrFuture = _loadQr();
+  }
+
+  Future<Map<String, dynamic>> _loadQr() async {
+    final parkings = await HostApiClient.instance.fetchParkings();
+    final parkingList = parkings['parkings'] as List<dynamic>? ?? const [];
+    final firstParking = parkingList.isNotEmpty
+        ? parkingList.first as Map<String, dynamic>
+        : null;
+    final parkingId = firstParking?['id'] as String? ?? 'demo-parking-1';
+    return HostApiClient.instance.fetchParkingQr(parkingId);
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _brandBlue,
-        systemNavigationBarColor: _backgroundColor,
+        statusBarColor: const Color(0xFF154A9F),
+        systemNavigationBarColor: const Color(0xFFEAF6FF),
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
         child: Scaffold(
-          backgroundColor: _backgroundColor,
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final scale = math.min(
-                constraints.maxWidth / _designWidth,
-                constraints.maxHeight / _designHeight,
-              );
+          backgroundColor: const Color(0xFFEAF6FF),
+          body: FutureBuilder<Map<String, dynamic>>(
+            future: _qrFuture,
+            builder: (context, snapshot) {
+              final qr =
+                  snapshot.data?['qr'] as Map<String, dynamic>? ??
+                  {
+                    'label': 'Parking Colonial Premium',
+                    'code': 'HOST-JM3K9',
+                    'payload':
+                        '{"type":"parkealo_host_parking","parkingId":"demo-parking-1"}',
+                  };
 
-              double s(double value) => value * scale;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  final scale = math.min(
+                    constraints.maxWidth / 232.0,
+                    constraints.maxHeight / 557.0,
+                  );
 
-              return Column(
-                children: [
-                  _Header(onBack: () => Navigator.maybePop(context)),
-                  SizedBox(height: s(16)),
-                  _QrCard(scale: scale),
-                  SizedBox(height: s(10)),
-                  _HowItWorksCard(scale: scale),
-                  SizedBox(height: s(13)),
-                  _ActionButtons(scale: scale),
-                ],
+                  double s(double value) => value * scale;
+
+                  return Column(
+                    children: [
+                      _Header(onBack: () => Navigator.maybePop(context)),
+                      SizedBox(height: s(16)),
+                      _QrCard(scale: scale, qr: qr),
+                      SizedBox(height: s(10)),
+                      _HowItWorksCard(scale: scale),
+                      SizedBox(height: s(13)),
+                      _ActionButtons(scale: scale),
+                    ],
+                  );
+                },
               );
             },
           ),
@@ -66,7 +96,7 @@ class _Header extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: const BoxDecoration(
-        color: ParkingQrScreen._brandBlue,
+        color: Color(0xFF154A9F),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
       ),
       child: SafeArea(
@@ -92,7 +122,7 @@ class _Header extends StatelessWidget {
                 ),
                 const Expanded(
                   child: Text(
-                    'parking QR Code',
+                    'Parking QR code',
                     textAlign: TextAlign.center,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -114,14 +144,19 @@ class _Header extends StatelessWidget {
 }
 
 class _QrCard extends StatelessWidget {
-  const _QrCard({required this.scale});
+  const _QrCard({required this.scale, required this.qr});
 
   final double scale;
+  final Map<String, dynamic> qr;
 
   double s(double value) => value * scale;
 
   @override
   Widget build(BuildContext context) {
+    final payload = qr['payload'] as String? ?? '';
+    final label = qr['label'] as String? ?? 'Parking';
+    final code = qr['code'] as String? ?? 'HOST-JM3K9';
+
     return Container(
       width: s(187),
       height: s(303),
@@ -135,23 +170,23 @@ class _QrCard extends StatelessWidget {
           _ParkealoLogo(scale: scale),
           SizedBox(height: s(6)),
           Text(
-            'Parking Colonial Premium',
+            label,
             maxLines: 1,
-            overflow: TextOverflow.visible,
+            overflow: TextOverflow.ellipsis,
             softWrap: false,
             style: TextStyle(
-              color: ParkingQrScreen._mutedText,
+              color: const Color(0xFF8796B4),
               fontSize: s(8),
               fontWeight: FontWeight.w500,
             ),
           ),
           SizedBox(height: s(7)),
-          _QrFrame(scale: scale),
+          _QrFrame(scale: scale, payload: payload),
           SizedBox(height: s(9)),
           Text(
-            'PKL-COL001',
+            code,
             maxLines: 1,
-            overflow: TextOverflow.visible,
+            overflow: TextOverflow.ellipsis,
             softWrap: false,
             style: TextStyle(color: const Color(0xFF9BA9BE), fontSize: s(7)),
           ),
@@ -160,14 +195,14 @@ class _QrCard extends StatelessWidget {
             height: s(23),
             width: s(127),
             decoration: BoxDecoration(
-              color: ParkingQrScreen._actionBlue,
+              color: const Color(0xFF0796FF),
               borderRadius: BorderRadius.circular(s(6)),
             ),
             alignment: Alignment.center,
             child: Text(
-              'Check-In / Check-Out',
+              'Check-in / check-out',
               maxLines: 1,
-              overflow: TextOverflow.visible,
+              overflow: TextOverflow.ellipsis,
               softWrap: false,
               style: TextStyle(
                 color: Colors.white,
@@ -178,11 +213,10 @@ class _QrCard extends StatelessWidget {
           ),
           SizedBox(height: s(16)),
           Text(
-            'Scan with the Parkealo app or your camera\n'
-            'to check-in or check-out of your reservation.',
+            'Scan with the Parkealo app or your camera\nto check in or check out of your reservation.',
             textAlign: TextAlign.center,
             maxLines: 2,
-            overflow: TextOverflow.visible,
+            overflow: TextOverflow.ellipsis,
             softWrap: false,
             style: TextStyle(
               color: const Color(0xFFB3C0D3),
@@ -218,7 +252,7 @@ class _ParkealoLogo extends StatelessWidget {
               width: s(32),
               height: s(10),
               decoration: BoxDecoration(
-                color: ParkingQrScreen._brandBlue,
+                color: const Color(0xFF154A9F),
                 borderRadius: BorderRadius.circular(s(3)),
               ),
               alignment: Alignment.center,
@@ -238,7 +272,7 @@ class _ParkealoLogo extends StatelessWidget {
               width: s(12),
               height: s(12),
               decoration: BoxDecoration(
-                color: ParkingQrScreen._actionBlue,
+                color: const Color(0xFF0796FF),
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: s(1)),
               ),
@@ -261,9 +295,10 @@ class _ParkealoLogo extends StatelessWidget {
 }
 
 class _QrFrame extends StatelessWidget {
-  const _QrFrame({required this.scale});
+  const _QrFrame({required this.scale, required this.payload});
 
   final double scale;
+  final String payload;
 
   double s(double value) => value * scale;
 
@@ -274,7 +309,7 @@ class _QrFrame extends StatelessWidget {
       height: s(139),
       decoration: BoxDecoration(
         color: Colors.white,
-        border: Border.all(color: ParkingQrScreen._inkColor, width: s(1.2)),
+        border: Border.all(color: const Color(0xFF101B3D), width: s(1.2)),
         borderRadius: BorderRadius.circular(s(8)),
       ),
       child: Stack(
@@ -283,17 +318,17 @@ class _QrFrame extends StatelessWidget {
             child: Padding(
               padding: EdgeInsets.all(s(19)),
               child: QrImageView(
-                data: 'PKL-COL001',
+                data: payload,
                 version: QrVersions.auto,
                 padding: EdgeInsets.zero,
                 backgroundColor: Colors.white,
                 eyeStyle: const QrEyeStyle(
                   eyeShape: QrEyeShape.square,
-                  color: ParkingQrScreen._inkColor,
+                  color: Color(0xFF101B3D),
                 ),
                 dataModuleStyle: const QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.square,
-                  color: ParkingQrScreen._inkColor,
+                  color: Color(0xFF101B3D),
                 ),
               ),
             ),
@@ -364,7 +399,7 @@ class _CornerMark extends StatelessWidget {
                 child: Container(
                   width: s(12),
                   height: s(1.4),
-                  color: ParkingQrScreen._inkColor,
+                  color: const Color(0xFF101B3D),
                 ),
               ),
               Positioned(
@@ -373,7 +408,7 @@ class _CornerMark extends StatelessWidget {
                 child: Container(
                   width: s(1.4),
                   height: s(12),
-                  color: ParkingQrScreen._inkColor,
+                  color: const Color(0xFF101B3D),
                 ),
               ),
             ],
@@ -398,7 +433,7 @@ class _HowItWorksCard extends StatelessWidget {
       height: s(108),
       padding: EdgeInsets.fromLTRB(s(14), s(13), s(12), 0),
       decoration: BoxDecoration(
-        color: ParkingQrScreen._backgroundColor,
+        color: const Color(0xFFEAF6FF),
         borderRadius: BorderRadius.circular(s(9)),
         border: Border.all(color: const Color(0xFFD6E4F3), width: s(1)),
       ),
@@ -416,17 +451,17 @@ class _HowItWorksCard extends StatelessWidget {
           SizedBox(height: s(10)),
           _InstructionLine(
             scale: scale,
-            text: 'User with reservation \u2192 starts the\nclock/timer',
+            text: 'User with reservation -> starts the\nclock/timer',
           ),
           SizedBox(height: s(5)),
           _InstructionLine(
             scale: scale,
-            text: 'Without an account \u2192 download the app',
+            text: 'Without an account -> download the app',
           ),
           SizedBox(height: s(5)),
           _InstructionLine(
             scale: scale,
-            text: 'Registered without a reservation \u2192 explorer',
+            text: 'Registered without a reservation -> explore',
           ),
         ],
       ),
@@ -448,7 +483,7 @@ class _InstructionLine extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '\u2022',
+          '*',
           style: TextStyle(
             color: const Color(0xFF7E91AD),
             fontSize: s(6.3),
@@ -530,15 +565,15 @@ class _FooterButton extends StatelessWidget {
       child: Container(
         height: s(25),
         decoration: BoxDecoration(
-          color: filled ? ParkingQrScreen._actionBlue : Colors.transparent,
+          color: filled ? const Color(0xFF0796FF) : Colors.transparent,
           borderRadius: BorderRadius.circular(s(6)),
-          border: Border.all(color: ParkingQrScreen._actionBlue, width: s(1)),
+          border: Border.all(color: const Color(0xFF0796FF), width: s(1)),
         ),
         alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: filled ? Colors.white : ParkingQrScreen._actionBlue,
+            color: filled ? Colors.white : const Color(0xFF0796FF),
             fontSize: s(10),
             fontWeight: FontWeight.w700,
           ),

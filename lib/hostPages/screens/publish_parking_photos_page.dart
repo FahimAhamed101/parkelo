@@ -1,305 +1,211 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
-const _primaryBlue = Color(0xFF1556B7);
-const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
-const _ink = Color(0xFF111827);
-const _muted = Color(0xFF9AA6B4);
+import '../services/host_publish_flow_service.dart';
+import '../widgets/publish_parking_flow.dart';
 
-class PublishParkingPhotosPage extends StatelessWidget {
+class PublishParkingPhotosPage extends StatefulWidget {
   const PublishParkingPhotosPage({super.key});
 
-  static const _tabs = ['Location', 'Details', 'Spaces', 'Services', 'Photos'];
+  @override
+  State<PublishParkingPhotosPage> createState() =>
+      _PublishParkingPhotosPageState();
+}
+
+class _PublishParkingPhotosPageState extends State<PublishParkingPhotosPage> {
+  final _picker = ImagePicker();
+  late List<String> _photos;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final parking = HostPublishFlowService.instance.parking ?? const {};
+    final media = parking['media'] as Map<String, dynamic>? ?? const {};
+    final gallery = (media['gallery'] as List<dynamic>? ?? const [])
+        .cast<String>();
+    _photos = List<String>.from(gallery.take(4));
+    while (_photos.length < 4) {
+      _photos.add('');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: _pageBg,
-      ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
+    return PublishFlowScaffold(
+      currentStep: 4,
+      stepTitle: 'Photos',
+      showBackAction: true,
+      onContinue: _saving ? () {} : _submit,
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(21, 21, 21, 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _PublishHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(7, 16, 7, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Row(
-                      children: [
-                        for (var i = 0; i < _tabs.length; i++) ...[
-                          Expanded(
-                            child: _StepPill(
-                              label: _tabs[i],
-                              isSelected: i == 0,
-                            ),
-                          ),
-                          if (i != _tabs.length - 1) const SizedBox(width: 5),
-                        ],
-                      ],
-                    ),
-                    const SizedBox(height: 11),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 6),
-                      child: Text(
-                        'PARKING PHOTOS',
-                        style: TextStyle(
-                          color: Color(0xFF7C8797),
-                          fontSize: 8.2,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(6, 0, 6, 15),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Column(
-                        children: const [
-                          _PhotoGrid(),
-                          SizedBox(height: 25),
-                          _TipsPanel(),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      height: 31,
-                      child: ElevatedButton(
-                        onPressed: () => Navigator.pushNamed(
-                          context,
-                          '/publish-parking-review',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _actionBlue,
-                          foregroundColor: Colors.white,
-                          elevation: 0,
-                          shadowColor: Colors.transparent,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(7),
-                          ),
-                        ),
-                        child: const Text(
-                          'Continue',
-                          style: TextStyle(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+            const PublishFieldLabel('PARKING PHOTOS'),
+            const SizedBox(height: 10),
+            GridView.builder(
+              itemCount: 4,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 10,
+                childAspectRatio: 1.5,
               ),
+              itemBuilder: (context, index) {
+                return _PhotoSlot(
+                  path: _photos[index],
+                  isCover: index == 0,
+                  onTap: () => _pickPhoto(index),
+                );
+              },
             ),
+            const SizedBox(height: 27),
+            _TipsPanel(),
+            if (_saving) ...[
+              const SizedBox(height: 16),
+              const Center(child: CircularProgressIndicator()),
+            ],
           ],
         ),
       ),
     );
   }
-}
 
-class _PublishHeader extends StatelessWidget {
-  const _PublishHeader({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 17),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 44,
-                    height: 42,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Publish parking',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
+  Future<void> _pickPhoto(int index) async {
+    final file = await _picker.pickImage(source: ImageSource.gallery);
+    if (file == null) return;
+    setState(() {
+      _photos[index] = file.path;
+    });
   }
-}
 
-class _StepPill extends StatelessWidget {
-  const _StepPill({required this.label, required this.isSelected});
-
-  final String label;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 18,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isSelected ? _primaryBlue : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: _primaryBlue, width: 1),
-      ),
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 3),
-          child: Text(
-            label,
-            maxLines: 1,
-            style: TextStyle(
-              color: isSelected ? Colors.white : _ink,
-              fontSize: 8.2,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+  Future<void> _submit() async {
+    final selectedPhotos = _photos.where((path) => path.isNotEmpty).toList();
+    if (selectedPhotos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Add at least one photo before continuing.'),
         ),
-      ),
-    );
-  }
-}
+      );
+      return;
+    }
 
-class _PhotoGrid extends StatelessWidget {
-  const _PhotoGrid();
+    setState(() => _saving = true);
+    try {
+      await HostPublishFlowService.instance.savePhotos({
+        'photos': selectedPhotos,
+        'mainPhoto': selectedPhotos.first,
+      });
 
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: 10,
-      crossAxisSpacing: 9,
-      childAspectRatio: 1.18,
-      children: const [
-        _PhotoSlot(isCover: true),
-        _PhotoSlot(),
-        _PhotoSlot(),
-        _PhotoSlot(),
-      ],
-    );
+      if (!mounted) return;
+      Navigator.pushNamed(context, '/publish-parking-prices');
+    } catch (error) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
   }
 }
 
 class _PhotoSlot extends StatelessWidget {
-  const _PhotoSlot({this.isCover = false});
+  const _PhotoSlot({
+    required this.path,
+    required this.isCover,
+    required this.onTap,
+  });
 
+  final String path;
   final bool isCover;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final child = Container(
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isCover ? const Color(0xFFF8FBFF) : const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(8),
-        border: isCover
-            ? null
-            : Border.all(color: const Color(0xFFE7EDF5), width: 1),
-      ),
-      child: Stack(
-        children: [
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.image_outlined,
-                  color: isCover ? _actionBlue : const Color(0xFFB8C3D2),
-                  size: 17,
+    final hasImage = path.isNotEmpty;
+    final child = InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: isCover ? const Color(0xFFF8FBFF) : const Color(0xFFEFF3F8),
+          borderRadius: BorderRadius.circular(12),
+          border: isCover ? null : Border.all(color: const Color(0xFFDCE5F0)),
+          image: hasImage
+              ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
+              : null,
+        ),
+        child: Stack(
+          children: [
+            if (!hasImage)
+              Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.image_outlined,
+                      color: isCover
+                          ? PublishFlowColors.blue
+                          : PublishFlowColors.hint,
+                      size: 26,
+                    ),
+                    const SizedBox(height: 9),
+                    Text(
+                      isCover ? 'Main photo' : 'Add photo',
+                      style: TextStyle(
+                        color: isCover
+                            ? PublishFlowColors.blue
+                            : PublishFlowColors.hint,
+                        fontSize: 11,
+                        fontWeight: isCover ? FontWeight.w900 : FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  isCover ? 'Main photo' : 'Add photo',
-                  style: TextStyle(
-                    color: isCover ? _actionBlue : _muted,
-                    fontSize: 8.4,
-                    fontWeight: isCover ? FontWeight.w800 : FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (isCover)
-            Positioned(
-              top: 7,
-              left: 0,
-              right: 0,
-              child: Center(
-                child: Container(
-                  height: 13,
-                  padding: const EdgeInsets.symmetric(horizontal: 7),
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: _primaryBlue,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: const Text(
-                    'COVER',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 6.3,
-                      fontWeight: FontWeight.w900,
+              ),
+            if (isCover)
+              Positioned(
+                top: 15,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PublishFlowColors.blue,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: const Text(
+                      'COVER',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
 
-    if (!isCover) {
-      return child;
-    }
+    if (!isCover) return child;
 
     return CustomPaint(
-      painter: const _DashedBorderPainter(
-        color: _actionBlue,
-        radius: 8,
-        dashWidth: 4,
-        gap: 3,
+      painter: const DashedBorderPainter(
+        color: PublishFlowColors.blue,
+        radius: 12,
       ),
       child: child,
     );
@@ -309,8 +215,8 @@ class _PhotoSlot extends StatelessWidget {
 class _TipsPanel extends StatelessWidget {
   const _TipsPanel();
 
-  static const _tips = [
-    'Photograph in natural daylight',
+  static const tips = [
+    'Take photos in natural daylight',
     'Show the entrance and the spaces',
     'Include visible signage',
     'At least 3 photos improve conversions by 60%',
@@ -319,23 +225,20 @@ class _TipsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(9, 0, 9, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Tips for better photos:',
             style: TextStyle(
-              color: _ink,
-              fontSize: 11,
+              color: PublishFlowColors.ink,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 11),
-          for (final tip in _tips) ...[
-            _TipRow(text: tip),
-            const SizedBox(height: 9),
-          ],
+          const SizedBox(height: 12),
+          for (final tip in tips) _TipRow(text: tip),
         ],
       ),
     );
@@ -349,74 +252,34 @@ class _TipRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 4,
-          height: 4,
-          margin: const EdgeInsets.only(top: 5),
-          decoration: const BoxDecoration(
-            color: _actionBlue,
-            shape: BoxShape.circle,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Color(0xFF49739E),
-              fontSize: 7.8,
-              height: 1.25,
-              fontWeight: FontWeight.w500,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 4,
+            height: 4,
+            margin: const EdgeInsets.only(top: 7),
+            decoration: const BoxDecoration(
+              color: PublishFlowColors.blue,
+              shape: BoxShape.circle,
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(
+                color: PublishFlowColors.muted,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                height: 1.25,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
-  }
-}
-
-class _DashedBorderPainter extends CustomPainter {
-  const _DashedBorderPainter({
-    required this.color,
-    required this.radius,
-    required this.dashWidth,
-    required this.gap,
-  });
-
-  final Color color;
-  final double radius;
-  final double dashWidth;
-  final double gap;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-    final path = Path()
-      ..addRRect(
-        RRect.fromRectAndRadius(Offset.zero & size, Radius.circular(radius)),
-      );
-
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final end = (distance + dashWidth).clamp(0.0, metric.length);
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += dashWidth + gap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedBorderPainter oldDelegate) {
-    return oldDelegate.color != color ||
-        oldDelegate.radius != radius ||
-        oldDelegate.dashWidth != dashWidth ||
-        oldDelegate.gap != gap;
   }
 }

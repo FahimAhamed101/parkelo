@@ -1,124 +1,65 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-import '../widgets/host_bottom_nav.dart';
+import '../services/host_api_client.dart';
+import '../widgets/host_panel_chrome.dart';
 
-const _primaryBlue = Color(0xFF1556B7);
-const _pageBg = Color(0xFFEFF7FF);
 const _ink = Color(0xFF111827);
 const _muted = Color(0xFF6B7280);
 
-class AlertsPage extends StatelessWidget {
+class AlertsPage extends StatefulWidget {
   const AlertsPage({super.key});
 
-  static const _alerts = [
-    _AlertData(
-      message: 'User A123456 finished their time in space B1',
-      time: 'ago 5 min',
-      color: Color(0xFFF59E0B),
-    ),
-    _AlertData(
-      message: 'New private request - license plate C789012',
-      time: 'ago 18 min',
-      color: Color(0xFF2563EB),
-    ),
-    _AlertData(
-      message: 'Overtime detected - A2 (+12 mins)',
-      time: 'ago 32 min',
-      color: Color(0xFFEF4444),
-    ),
-    _AlertData(
-      message: 'Booking confirmed - D901234 - tomorrow\n09:00',
-      time: 'ago 1h',
-      color: Color(0xFF16A34A),
-    ),
-  ];
-
   @override
-  Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-      ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            _AlertsHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(13, 13, 13, 28),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < _alerts.length; i++) ...[
-                      _AlertCard(alert: _alerts[i]),
-                      if (i != _alerts.length - 1) const SizedBox(height: 14),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<AlertsPage> createState() => _AlertsPageState();
 }
 
-class _AlertsHeader extends StatelessWidget {
-  const _AlertsHeader({required this.onBack});
+class _AlertsPageState extends State<AlertsPage> {
+  late Future<Map<String, dynamic>> _alertsFuture;
 
-  final VoidCallback onBack;
+  @override
+  void initState() {
+    super.initState();
+    _alertsFuture = HostApiClient.instance.fetchAlerts();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 17),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 44,
-                    height: 42,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Alerts',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 44),
-              ],
+    return HostPanelScaffold(
+      selectedTab: HostPanelTab.alerts,
+      child: FutureBuilder<Map<String, dynamic>>(
+        future: _alertsFuture,
+        builder: (context, snapshot) {
+          final alerts =
+              (snapshot.data?['alerts'] as List<dynamic>? ?? const [])
+                  .map((item) => item as Map<String, dynamic>)
+                  .toList();
+
+          if (snapshot.connectionState == ConnectionState.waiting &&
+              alerts.isEmpty) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async {
+              setState(() {
+                _alertsFuture = HostApiClient.instance.fetchAlerts();
+              });
+              await _alertsFuture;
+            },
+            child: ListView.separated(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(13, 16, 13, 28),
+              itemCount: alerts.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                return _AlertCard(alert: alerts[index]);
+              },
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -127,10 +68,18 @@ class _AlertsHeader extends StatelessWidget {
 class _AlertCard extends StatelessWidget {
   const _AlertCard({required this.alert});
 
-  final _AlertData alert;
+  final Map<String, dynamic> alert;
 
   @override
   Widget build(BuildContext context) {
+    final severity = alert['severity'] as String? ?? 'info';
+    final color = switch (severity) {
+      'warning' => const Color(0xFFF59E0B),
+      'success' => const Color(0xFF16A34A),
+      'danger' => const Color(0xFFEF4444),
+      _ => const Color(0xFF2563EB),
+    };
+
     return Container(
       constraints: const BoxConstraints(minHeight: 57),
       clipBehavior: Clip.antiAlias,
@@ -149,7 +98,7 @@ class _AlertCard extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(width: 4, color: alert.color),
+            Container(width: 4, color: color),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(13, 9, 12, 8),
@@ -158,25 +107,25 @@ class _AlertCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      alert.message,
+                      alert['message'] as String? ?? '',
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: GoogleFonts.nunito(
                         color: _ink,
-                        fontSize: 11.5,
+                        fontSize: 12,
                         height: 1.18,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 5),
                     Text(
-                      alert.time,
+                      alert['time'] as String? ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: GoogleFonts.nunito(
                         color: _muted,
-                        fontSize: 8.8,
-                        fontWeight: FontWeight.w500,
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ],
@@ -188,16 +137,4 @@ class _AlertCard extends StatelessWidget {
       ),
     );
   }
-}
-
-class _AlertData {
-  const _AlertData({
-    required this.message,
-    required this.time,
-    required this.color,
-  });
-
-  final String message;
-  final String time;
-  final Color color;
 }

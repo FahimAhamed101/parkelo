@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../widgets/host_bottom_nav.dart';
+import '../widgets/host_panel_chrome.dart';
 
 const _primaryBlue = Color(0xFF1556B7);
 const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
 const _ink = Color(0xFF111827);
 const _muted = Color(0xFF8A96A8);
 const _green = Color(0xFF16A34A);
@@ -57,107 +55,24 @@ class ParkingSpacesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-      ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
+    return HostPanelScaffold(
+      selectedTab: HostPanelTab.parking,
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(13, 18, 13, 28),
+        child: Column(
           children: [
-            _ParkingHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(13, 28, 13, 28),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < _sections.length; i++) ...[
-                      _ParkingSectionCard(
-                        section: _sections[i],
-                        action: _SettingsButton(
-                          onTap: () => Navigator.pushNamed(
-                            context,
-                            '/parking-spaces-config',
-                          ),
-                        ),
-                      ),
-                      if (i != _sections.length - 1) const SizedBox(height: 22),
-                    ],
-                  ],
+            for (var i = 0; i < _sections.length; i++) ...[
+              _ParkingSectionCard(
+                section: _sections[i],
+                action: _SettingsButton(
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/parking-spaces-config'),
                 ),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class ParkingSpacesConfigPage extends StatelessWidget {
-  const ParkingSpacesConfigPage({super.key});
-
-  static const _sections = ParkingSpacesPage._sections;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-      ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            _ParkingHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(13, 10, 13, 10),
-                child: Column(
-                  children: [
-                    for (var i = 0; i < _sections.length; i++) ...[
-                      _ParkingSectionCard(
-                        section: _sections[i],
-                        action: _DoneButton(
-                          onTap: () => Navigator.maybePop(context),
-                        ),
-                        showConfiguration: true,
-                      ),
-                      if (i != _sections.length - 1) const SizedBox(height: 12),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 2, 6, 8),
-              child: SizedBox(
-                height: 36,
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _showNewSectionSheet(context),
-                  icon: const Icon(Icons.add_rounded, size: 16),
-                  label: const Text(
-                    'Add parking section',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
-                  ),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _actionBlue,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    shadowColor: Colors.transparent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
+              if (i != _sections.length - 1) const SizedBox(height: 14),
+            ],
+            const SizedBox(height: 14),
+            _AddSectionButton(onTap: () => _showNewSectionSheet(context)),
           ],
         ),
       ),
@@ -174,59 +89,53 @@ class ParkingSpacesConfigPage extends StatelessWidget {
   }
 }
 
-class _ParkingHeader extends StatelessWidget {
-  const _ParkingHeader({required this.onBack});
+class ParkingSpacesConfigPage extends StatelessWidget {
+  const ParkingSpacesConfigPage({super.key});
 
-  final VoidCallback onBack;
+  static const _sections = ParkingSpacesPage._sections;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 17),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 44,
-                    height: 42,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Parking spaces',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+    return HostPanelScaffold(
+      selectedTab: HostPanelTab.parking,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(13, 18, 13, 10),
+              child: Column(
+                children: [
+                  for (var i = 0; i < _sections.length; i++) ...[
+                    _ParkingSectionCard(
+                      section: _sections[i],
+                      action: _DoneButton(
+                        onTap: () => Navigator.maybePop(context),
+                      ),
+                      showConfiguration: true,
                     ),
-                  ),
-                ),
-                const SizedBox(width: 44),
-              ],
+                    if (i != _sections.length - 1) const SizedBox(height: 12),
+                  ],
+                ],
+              ),
             ),
           ),
-        ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(13, 2, 13, 12),
+            child: _AddSectionButton(
+              onTap: () => _showNewSectionSheet(context),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+
+  static void _showNewSectionSheet(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const _NewSectionSheet(),
     );
   }
 }
@@ -249,7 +158,8 @@ class _ParkingSectionCard extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, 14, 16, showConfiguration ? 12 : 17),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(17),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE1EAF5)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x0A000000),
@@ -269,7 +179,7 @@ class _ParkingSectionCard extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    color: _primaryBlue,
+                    color: _ink,
                     fontSize: 15,
                     fontWeight: FontWeight.w900,
                   ),
@@ -357,10 +267,10 @@ class _SettingsButton extends StatelessWidget {
             Icon(Icons.settings_outlined, color: Color(0xFF4B5563), size: 12),
             SizedBox(width: 4),
             Text(
-              'Settings',
+              'Config',
               style: TextStyle(
                 color: Color(0xFF4B5563),
-                fontSize: 8.8,
+                fontSize: 11,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -601,7 +511,7 @@ class _SpacesWrap extends StatelessWidget {
             for (final space in spaces)
               SizedBox(
                 width: itemWidth,
-                height: 39,
+                height: 44,
                 child: _SpaceTile(space: space),
               ),
           ],
@@ -623,7 +533,7 @@ class _SpaceTile extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: space.isOccupied ? _redBg : _greenBg,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color: space.isOccupied ? _redBorder : _greenBorder,
           width: 1.2,
@@ -638,7 +548,7 @@ class _SpaceTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color,
-              fontSize: 8.6,
+              fontSize: 12,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -648,7 +558,7 @@ class _SpaceTile extends StatelessWidget {
                 ? Icons.directions_car_filled_rounded
                 : Icons.check_rounded,
             color: color,
-            size: space.isOccupied ? 12 : 13,
+            size: space.isOccupied ? 12 : 14,
           ),
         ],
       ),
@@ -725,6 +635,48 @@ class _LegendItem extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AddSectionButton extends StatelessWidget {
+  const _AddSectionButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        height: 43,
+        width: double.infinity,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: const Color(0xFFDDE7F3),
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: const Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.add_rounded, color: _primaryBlue, size: 18),
+            SizedBox(width: 8),
+            Text(
+              'Add parking section',
+              style: TextStyle(
+                color: _primaryBlue,
+                fontSize: 13,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

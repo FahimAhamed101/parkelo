@@ -16,18 +16,18 @@ class AppText extends StatelessWidget {
   final TextStyle? style; // If you want to override everything
 
   const AppText(
-      this.text, {
-        super.key,
-        this.color,
-        this.fontSize,
-        this.fontWeight,
-        this.fontStyle,
-        this.textAlign,
-        this.overflow,
-        this.maxLines,
-        this.decoration,
-        this.style,
-      });
+    this.text, {
+    super.key,
+    this.color,
+    this.fontSize,
+    this.fontWeight,
+    this.fontStyle,
+    this.textAlign,
+    this.overflow,
+    this.maxLines,
+    this.decoration,
+    this.style,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -36,18 +36,19 @@ class AppText extends StatelessWidget {
       textAlign: textAlign ?? TextAlign.start,
       maxLines: maxLines,
       overflow: overflow,
-      style: style ??
-          GoogleFonts.inter(
+      style:
+          style ??
+          GoogleFonts.nunito(
             letterSpacing: 0,
-            height: 0,
             fontSize: fontSize ?? 20,
-            fontWeight: fontWeight ?? FontWeight.w500,
+            fontWeight: fontWeight ?? FontWeight.w600,
             fontStyle: fontStyle ?? FontStyle.normal,
             decoration: decoration ?? TextDecoration.none,
-            color: color ??
+            color:
+                color ??
                 (Theme.of(context).brightness == Brightness.dark
                     ? AppColors.DarkThemeText
-                    : AppColors.DarkBlue),
+                    : AppColors.text),
           ),
     );
   }

@@ -7,8 +7,9 @@ import 'package:parkealo/hostPages/screens/homepage.dart';
 import 'package:parkealo/hostPages/screens/parking_spaces_page.dart';
 import 'package:parkealo/hostPages/screens/prices_page.dart';
 import 'package:parkealo/hostPages/screens/services_page.dart';
+import 'package:parkealo/views/Feature/Driver/bottom_nav/bottom_nav.dart';
 
-import '../../../../utils/AppColor/app_colors.dart';
+import '../../../../utils/appColor/app_colors.dart';
 import '../../../../utils/appIcons/app_icons.dart';
 
 class HostBottomNavScreen extends StatefulWidget {
@@ -38,14 +39,17 @@ class _HostBottomNavScreenState extends State<HostBottomNavScreen> {
   }
 
   void navigationItemTap(int index) {
-    setState(() {
-      selectedIndex = index;
-    });
+    if (index == 3) return;
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => BottomNavScreen(initialIndex: index)),
+      (route) => false,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final navHeight = 72.h.clamp(64.0, 78.0).toDouble();
+    final navHeight = 66.h.clamp(64.0, 68.0).toDouble();
 
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -55,45 +59,28 @@ class _HostBottomNavScreenState extends State<HostBottomNavScreen> {
         child: Container(
           height: navHeight,
           decoration: BoxDecoration(
-            color: const Color(0xFFFFFFFF),
+            color: AppColors.bg,
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(0.r),
               topRight: Radius.circular(0.r),
             ),
             border: const Border(
-              top: BorderSide(color: Color(0xFFEAEAEA), width: 1.5),
+              top: BorderSide(color: AppColors.border, width: 1),
             ),
+            boxShadow: AppColors.bottomNavShadow,
           ),
-          child: BottomNavigationBar(
-            elevation: 0,
-            type: BottomNavigationBarType.fixed,
-            currentIndex: selectedIndex,
-            selectedItemColor: AppColors.DarkBlue,
-            unselectedItemColor: AppColors.DarkGray,
-            selectedFontSize: 10,
-            unselectedFontSize: 10,
-            selectedLabelStyle: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              fontSize: 10,
-              height: 1.1,
-              color: AppColors.DarkBlue,
-            ),
-            unselectedLabelStyle: GoogleFonts.inter(
-              fontWeight: FontWeight.w600,
-              fontSize: 10,
-              height: 1.1,
-              color: const Color(0xFF4D4D4D),
-            ),
-            showSelectedLabels: true,
-            showUnselectedLabels: true,
-            backgroundColor: Colors.transparent,
-            onTap: navigationItemTap,
-            items: [
-              _navItem(AppIcons.explore, AppIcons.explore, 'Home'),
-              _navItem(AppIcons.parking, AppIcons.parking, 'Parking'),
-              _navItem(AppIcons.services, AppIcons.services, 'Services'),
-              _navItem(AppIcons.prices, AppIcons.prices, 'Prices'),
-              _navItem(AppIcons.notification, AppIcons.notification, 'Alerts'),
+          child: Row(
+            children: [
+              _navItem(icon: AppIcons.explore, label: 'Explore', index: 0),
+              _navItem(icon: AppIcons.bookings, label: 'Bookings', index: 1),
+              _navItem(icon: AppIcons.favorites, label: 'Favorites', index: 2),
+              _navItem(icon: AppIcons.home, label: 'Host', index: 3),
+              _navItem(icon: AppIcons.account, label: 'Account', index: 4),
+              _navItem(
+                materialIcon: Icons.settings_outlined,
+                label: 'Admin',
+                index: 5,
+              ),
             ],
           ),
         ),
@@ -101,29 +88,68 @@ class _HostBottomNavScreenState extends State<HostBottomNavScreen> {
     );
   }
 
-  BottomNavigationBarItem _navItem(
-    String unselected,
-    String selected,
-    String label,
-  ) {
-    return BottomNavigationBarItem(
-      label: label,
-      icon: SvgPicture.asset(
-        unselected,
-        height: 21,
-        width: 21,
-        colorFilter: const ColorFilter.mode(
-          AppColors.DarkGray,
-          BlendMode.srcIn,
-        ),
-      ),
-      activeIcon: SvgPicture.asset(
-        selected,
-        height: 22,
-        width: 22,
-        colorFilter: const ColorFilter.mode(
-          AppColors.DarkBlue,
-          BlendMode.srcIn,
+  Widget _navItem({
+    String? icon,
+    IconData? materialIcon,
+    required String label,
+    required int index,
+  }) {
+    final isSelected = index == 3;
+    final labelColor = isSelected ? AppColors.blue : AppColors.textFaint;
+    final iconColor = isSelected ? Colors.white : AppColors.blue;
+
+    final Widget iconWidget = materialIcon != null
+        ? Icon(materialIcon, size: 19.r, color: iconColor)
+        : SvgPicture.asset(
+            icon!,
+            height: 19.r,
+            width: 19.r,
+            colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+          );
+
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => navigationItemTap(index),
+        child: SizedBox(
+          height: double.infinity,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                height: 28.r,
+                width: 28.r,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: isSelected ? AppColors.blue : Colors.transparent,
+                  borderRadius: BorderRadius.circular(7.r),
+                ),
+                child: iconWidget,
+              ),
+              SizedBox(height: 2.h),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                  fontSize: 8.sp,
+                  height: 1,
+                  fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+                  color: labelColor,
+                ),
+              ),
+              SizedBox(height: 5.h),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                height: 3.h,
+                width: isSelected ? 18.w : 0,
+                decoration: BoxDecoration(
+                  gradient: isSelected ? AppColors.gradGreenBar : null,
+                  borderRadius: BorderRadius.circular(99.r),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

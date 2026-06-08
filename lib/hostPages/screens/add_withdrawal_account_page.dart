@@ -155,7 +155,10 @@ class AddWithdrawalAccountPage extends StatelessWidget {
                               label: 'Save account',
                               isPrimary: true,
                               onPressed: () {
-                                Navigator.pushNamed(context, '/publish-parking');
+                                Navigator.pushNamed(
+                                  context,
+                                  '/publish-parking',
+                                );
                               },
                             ),
                           ),

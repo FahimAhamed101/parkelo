@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../utils/appColor/app_colors.dart';
-import '../../../base/AppText/appText.dart';
-import '../../../base/CustomAppbar/custom_appbar.dart';
+import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../helpers/route.dart';
-import 'widgets/active_booking_card.dart';
-import 'widgets/request_card.dart';
+import '../../../../utils/appColor/app_colors.dart';
 
 class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key});
@@ -14,150 +12,79 @@ class BookingsScreen extends StatefulWidget {
   State<BookingsScreen> createState() => _BookingsScreenState();
 }
 
-class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProviderStateMixin {
+class _BookingsScreenState extends State<BookingsScreen> {
   String selectedFilter = 'All';
-  late TabController _tabController;
-  bool _isCheckedIn = false;
-
-  final List<RequestCardModel> _historyItems = const [
-    RequestCardModel(
-      title: "VIP Piantini · Private House",
-      dateTime: "Yesterday · 09:00",
-      licensePlate: "B789012",
-      statusLabel: "COMPLETED",
-      statusColor: Color(0xFF5C6BC0),
-      statusBgColor: Color(0xFFEDE7F6),
-      approvalLabel: "Approval",
-      approvalColor: Color(0xFF5C6BC0),
-      approvalBgColor: Color(0xFFEDE7F6),
-      message: "Booking completed. Thank you for using Parkealo.",
-      messageIcon: Icons.check_circle_outline,
-    ),
-    RequestCardModel(
-      title: "Parking Bella Vista",
-      dateTime: "Yesterday · 14:00",
-      licensePlate: "B789012",
-      statusLabel: "CONFIRMED",
-      statusColor: Color(0xFF2E7D32),
-      statusBgColor: Color(0xFFE8F5E9),
-      approvalLabel: "Automatic",
-      approvalColor: Color(0xFF2E7D32),
-      approvalBgColor: Color(0xFFE8F5E9),
-      message: "Booking confirmed. Check the access information or PIN in the chat.",
-      messageIcon: Icons.check_box_outlined,
-    ),
-    RequestCardModel(
-      title: "Parking Colonial Premium",
-      dateTime: "May 20 · 10:30",
-      licensePlate: "A123456",
-      statusLabel: "PENDING",
-      statusColor: Color(0xFFFF9800),
-      statusBgColor: Color(0xFFFFF3E0),
-      approvalLabel: "Approval",
-      approvalColor: Color(0xFFFF9800),
-      approvalBgColor: Color(0xFFFFF3E0),
-      message: "Waiting for approval. You will receive the access information or PIN once confirmed.",
-      messageIcon: Icons.access_time_outlined,
-    ),
-  ];
-
-  final List<RequestCardModel> _requestItems = const [
-    RequestCardModel(
-      title: "VIP Piantini · Private House",
-      dateTime: "Tomorrow · 09:00",
-      licensePlate: "B789012",
-      statusLabel: "PENDING",
-      statusColor: Color(0xFFFF9800),
-      statusBgColor: Color(0xFFFFF3E0),
-      approvalLabel: "Approval",
-      approvalColor: Color(0xFFFF9800),
-      approvalBgColor: Color(0xFFFFF3E0),
-      message: "Waiting for approval. You will receive the access information or PIN once confirmed.",
-      messageIcon: Icons.access_time_outlined,
-    ),
-    RequestCardModel(
-      title: "Parking Bella Vista",
-      dateTime: "Tomorrow · 14:00",
-      licensePlate: "B789012",
-      statusLabel: "CONFIRMED",
-      statusColor: Color(0xFF2E7D32),
-      statusBgColor: Color(0xFFE8F5E9),
-      approvalLabel: "Automatic",
-      approvalColor: Color(0xFF2E7D32),
-      approvalBgColor: Color(0xFFE8F5E9),
-      message: "Booking confirmed. Check the access information or PIN in the chat.",
-      messageIcon: Icons.check_box_outlined,
-    ),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
+  bool isCheckedIn = false;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF3F8F4),
-      appBar: const CustomAppBar(title: "Bookings", showBackButton: true),
-      body: Column(
-        children: [
-          // Filter Chips
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildFilterChip('All'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Quick'),
-                const SizedBox(width: 8),
-                _buildFilterChip('Pending'),
-              ],
-            ),
-          ),
-          
-          // Tabs
-          TabBar(
-            controller: _tabController,
-            indicatorColor: AppColors.Primary,
-            indicatorWeight: 2,
-            labelColor: AppColors.Primary,
-            unselectedLabelColor: Colors.grey.shade600,
-            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-            unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.normal, fontSize: 14),
-            tabs: const [
-              Tab(text: "Active"),
-              Tab(text: "Requests"),
-              Tab(text: "History"),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                height: 3,
+                margin: const EdgeInsets.symmetric(horizontal: 15),
+                decoration: const BoxDecoration(
+                  gradient: AppColors.gradGreenBar,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(15, 15, 15, 0),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'My\nreservations',
+                        style: GoogleFonts.nunito(
+                          fontSize: 24,
+                          height: 1.18,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.text,
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 16),
+                      child: Row(
+                        children: [
+                          _buildFilterChip('All', Icons.tune_rounded),
+                          const SizedBox(width: 6),
+                          _buildFilterChip('Quick', Icons.bolt_rounded),
+                          const SizedBox(width: 6),
+                          _buildFilterChip('Pending', Icons.hourglass_empty),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildTabs(),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    _buildActiveTab(),
+                    _buildSimpleList('No requests yet'),
+                    _buildSimpleList('No reservation history yet'),
+                  ],
+                ),
+              ),
             ],
           ),
-          
-          // Tab Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildActiveTab(),
-                _buildRequestsTab(),
-                _buildHistoryTab(),
-              ],
-            ),
-          )
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildFilterChip(String label) {
-    bool isSelected = selectedFilter == label;
+  Widget _buildFilterChip(String label, IconData icon) {
+    final isSelected = selectedFilter == label;
     return GestureDetector(
       onTap: () {
         setState(() {
@@ -165,205 +92,120 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
         });
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: isSelected ? AppColors.Primary : Colors.white,
-          border: Border.all(color: isSelected ? AppColors.Primary : Colors.grey.shade400, width: 0.5),
-          borderRadius: BorderRadius.circular(16),
+          color: isSelected ? AppColors.blueLt : AppColors.bg,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: isSelected ? AppColors.blue : AppColors.border,
+            width: isSelected ? 1.5 : 1,
+          ),
         ),
-        child: AppText(
-          label,
-          fontSize: 12,
-          color: isSelected ? Colors.white : Colors.grey.shade700,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 12,
+              color: label == 'Quick'
+                  ? AppColors.orange
+                  : isSelected
+                  ? AppColors.blue
+                  : AppColors.textSub,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.nunito(
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                color: isSelected ? AppColors.blue : AppColors.textSub,
+              ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildTabs() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border)),
+      ),
+      child: TabBar(
+        indicatorColor: AppColors.blue,
+        indicatorWeight: 2.5,
+        indicatorSize: TabBarIndicatorSize.tab,
+        labelColor: AppColors.blue,
+        unselectedLabelColor: AppColors.textFaint,
+        labelStyle: GoogleFonts.nunito(
+          fontSize: 13,
+          fontWeight: FontWeight.w900,
+        ),
+        unselectedLabelStyle: GoogleFonts.nunito(
+          fontSize: 13,
+          fontWeight: FontWeight.w800,
+        ),
+        tabs: const [
+          Tab(text: 'Active'),
+          Tab(text: 'Requests'),
+          Tab(text: 'History'),
+        ],
       ),
     );
   }
 
   Widget _buildActiveTab() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(15, 16, 15, 20),
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.15),
-                borderRadius: BorderRadius.circular(12),
+        Row(children: [_buildModePill(), const Spacer(), _buildChatButton()]),
+        const SizedBox(height: 8),
+        isCheckedIn
+            ? _CheckedInReservationCard(
+                onCheckOut: () {
+                  setState(() {
+                    isCheckedIn = false;
+                  });
+                },
+              )
+            : _PendingReservationCard(
+                onOccupiedTap: _showOccupiedBottomSheet,
+                onScanTap: () async {
+                  final result = await Get.toNamed(AppRoutes.scanningScreen);
+                  if (result == true) {
+                    setState(() {
+                      isCheckedIn = true;
+                    });
+                  }
+                },
               ),
-              child: Row(
-                children: [
-                  const Icon(Icons.bolt, color: Colors.green, size: 14),
-                  const SizedBox(width: 4),
-                  AppText("Automatic", fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade700),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade300),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.chat_bubble_outline, color: AppColors.Primary, size: 14),
-                  const SizedBox(width: 4),
-                  AppText("Chat", fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.Primary),
-                ],
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 20),
-        if (_isCheckedIn)
-          ActiveBookingCard(
-            onExtend: () {},
-            onCheckOut: () => setState(() => _isCheckedIn = false),
-          )
-        else
-          _buildBookingCard(),
       ],
     );
   }
 
-  Widget _buildBookingCard() {
+  Widget _buildModePill() {
     return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 11),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
+        color: AppColors.greenLt,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: AppColors.greenMid),
       ),
-      child: Column(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Blue Header
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Color(0xFF0052AD),
-              borderRadius: BorderRadius.only(
-                topRight: Radius.circular(16),
-                topLeft: Radius.circular(16),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.location_on_outlined, color: Colors.white, size: 24),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      AppText("Parking Colonial\nPremium", fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                      const SizedBox(height: 6),
-                      AppText("Today · 10:30 – 12:30", fontSize: 11, color: Colors.white.withOpacity(0.9)),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: AppText("Pending check-in", fontSize: 10, fontWeight: FontWeight.w600, color: Colors.white),
-                ),
-              ],
-            ),
-          ),
-          
-          // Details Footer
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        AppText("License Plate", fontSize: 10, color: Colors.grey.shade500),
-                        const SizedBox(height: 4),
-                        AppText("A123456", fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        AppText("Booking", fontSize: 10, color: Colors.grey.shade500),
-                        const SizedBox(height: 4),
-                        AppText("RD\$150 × 2h", fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.Primary),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                
-                // Parking Occupied Button
-                GestureDetector(
-                  onTap: () => _showOccupiedBottomSheet(context),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7E6),
-                      border: Border.all(color: const Color(0xFFFFE4B5)),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.warning_amber_rounded, color: Color(0xFFB87800), size: 16),
-                        const SizedBox(width: 8),
-                        AppText("Parking occupied", fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFFB87800)),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                
-                // Confirm Reservation Button
-                GestureDetector(
-                  onTap: () async {
-                    final result = await Get.toNamed(AppRoutes.scanningScreen);
-                    if (result == true) setState(() => _isCheckedIn = true);
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF008CFA), // Using the brighter blue for CTA
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.qr_code_scanner, color: Colors.white, size: 18),
-                        const SizedBox(width: 8),
-                        AppText("Scan QR - Check in", fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          const Icon(Icons.bolt_rounded, size: 13, color: AppColors.green),
+          const SizedBox(width: 5),
+          Text(
+            'Automatic',
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              fontWeight: FontWeight.w900,
+              color: AppColors.green,
             ),
           ),
         ],
@@ -371,258 +213,376 @@ class _BookingsScreenState extends State<BookingsScreen> with SingleTickerProvid
     );
   }
 
-  void _showOccupiedBottomSheet(BuildContext context) {
-    int selectedOption = -1;
+  Widget _buildChatButton() {
+    return Container(
+      height: 30,
+      padding: const EdgeInsets.symmetric(horizontal: 13),
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: AppColors.blueMid),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.chat_bubble_outline_rounded,
+            size: 15,
+            color: AppColors.blue,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            'Chat',
+            style: GoogleFonts.nunito(
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              color: AppColors.blue,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
+  Widget _buildSimpleList(String text) {
+    return Center(
+      child: Text(
+        text,
+        style: GoogleFonts.nunito(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+          color: AppColors.textSub,
+        ),
+      ),
+    );
+  }
+
+  void _showOccupiedBottomSheet() {
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Container(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 100),
-              decoration: const BoxDecoration(
-                color: Color(0xFFF3F8F4),
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 28),
+          decoration: const BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 42,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderMd,
+                    borderRadius: BorderRadius.circular(100),
+                  ),
                 ),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Header
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFFF7E6),
-                          shape: BoxShape.circle,
-                          border: Border.all(color: const Color(0xFFFFE4B5)),
-                        ),
-                        child: const Icon(Icons.access_time, color: Color(0xFFB87800), size: 24),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            AppText("Active booking in this space", fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87),
-                            const SizedBox(height: 4),
-                            AppText("There is a Parkealo user who arrived earlier", fontSize: 12, color: Colors.grey.shade600),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Time Info Card
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFFF7E6),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            AppText("Scheduled departure time", fontSize: 12, color: Colors.grey.shade700),
-                            AppText("11:45 AM", fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            AppText("Approx. remaining time", fontSize: 12, color: Colors.grey.shade700),
-                            AppText("~25 min", fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  AppText("What do you want to do now?", fontSize: 15, fontWeight: FontWeight.bold, color: Colors.black87),
-                  const SizedBox(height: 16),
-
-                  // Option 1: Wait
-                  _buildOptionCard(
-                    icon: Icons.access_time,
-                    iconColor: const Color(0xFFB87800),
-                    iconBgColor: const Color(0xFFFFF7E6),
-                    title: "Wait for them to leave",
-                    subtitle: "You will receive a notification when the space becomes free (~11:45 AM)",
-                    isSelected: selectedOption == 0,
-                    onTap: () => setSheetState(() => selectedOption = 0),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Option 2: Reassign
-                  _buildOptionCard(
-                    icon: Icons.swap_horiz,
-                    iconColor: AppColors.Primary,
-                    iconBgColor: const Color(0xFFE8F4FD),
-                    title: "Reassign to another space",
-                    subtitle: "We will assign you another available space in this same parking lot",
-                    isSelected: selectedOption == 1,
-                    onTap: () => setSheetState(() => selectedOption = 1),
-                  ),
-                  const SizedBox(height: 24),
-
-                  // Bottom Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: GestureDetector(
-                          onTap: () => Navigator.pop(context),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: Colors.grey.shade200,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.center,
-                            child: AppText("Cancel", fontSize: 14, fontWeight: FontWeight.w600, color: Colors.grey.shade700),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        flex: 3,
-                        child: GestureDetector(
-                          onTap: selectedOption == -1
-                              ? null
-                              : () {
-                                  Navigator.pop(context);
-                                  // Handle selection
-                                },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            decoration: BoxDecoration(
-                              color: selectedOption == -1
-                                  ? Colors.grey.shade300
-                                  : AppColors.Primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            alignment: Alignment.center,
-                            child: AppText(
-                              selectedOption == 1
-                                  ? "Reassign now"
-                                  : selectedOption == 0
-                                      ? "Confirm — Wait"
-                                      : "Select an option",
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: selectedOption == -1 ? Colors.grey.shade500 : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              const SizedBox(height: 18),
+              Text(
+                'Parking space occupied',
+                style: GoogleFonts.nunito(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.text,
+                ),
               ),
-            );
-          },
+              const SizedBox(height: 8),
+              Text(
+                'This space is currently occupied. You can wait for it to clear or contact support through chat.',
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSub,
+                ),
+              ),
+              const SizedBox(height: 18),
+              _WarningActionButton(
+                text: 'Got it',
+                color: AppColors.blue,
+                textColor: Colors.white,
+                onTap: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         );
       },
     );
   }
+}
 
-  Widget _buildRequestsTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _requestItems.length,
-      itemBuilder: (context, index) => Padding(
-        padding: EdgeInsets.only(bottom: index < _requestItems.length - 1 ? 16 : 0),
-        child: RequestCard(
-          data: _requestItems[index],
-          onMessageHost: () {
-            // TODO: open chat with host
-          },
-        ),
+class _PendingReservationCard extends StatelessWidget {
+  final VoidCallback onOccupiedTap;
+  final VoidCallback onScanTap;
+
+  const _PendingReservationCard({
+    required this.onOccupiedTap,
+    required this.onScanTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.shadowMd,
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.fromLTRB(17, 13, 16, 12),
+            decoration: const BoxDecoration(gradient: AppColors.gradPrivate),
+            child: Row(
+              children: [
+                const _ReservationPinLogo(),
+                const SizedBox(width: 11),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Parking Colonial\nPremium',
+                        style: GoogleFonts.nunito(
+                          fontSize: 14,
+                          height: 1.05,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Today - 10:30 - 12:30',
+                        style: GoogleFonts.nunito(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white.withValues(alpha: 0.82),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 118,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: Colors.white.withValues(alpha: 0.34),
+                    ),
+                  ),
+                  child: Text(
+                    'Pending check-in',
+                    style: GoogleFonts.nunito(
+                      fontSize: 11,
+                      height: 1.1,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            height: 3,
+            decoration: const BoxDecoration(gradient: AppColors.gradGreenBar),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+            child: Column(
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _DetailBlock('License Plate', 'A123456')),
+                    _DetailBlock(
+                      'Booking',
+                      'RD\$150 x 2h',
+                      alignEnd: true,
+                      valueColor: AppColors.blue,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 15),
+                _WarningActionButton(
+                  text: 'Parking occupied',
+                  color: AppColors.warnBg,
+                  textColor: AppColors.warn,
+                  borderColor: AppColors.warnBd,
+                  icon: Icons.warning_amber_rounded,
+                  onTap: onOccupiedTap,
+                ),
+                const SizedBox(height: 9),
+                _WarningActionButton(
+                  text: 'Scan QR - Check-in',
+                  color: AppColors.green,
+                  textColor: Colors.white,
+                  icon: Icons.qr_code_2_rounded,
+                  onTap: onScanTap,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildHistoryTab() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: _historyItems.length,
-      itemBuilder: (context, index) => Padding(
-        padding: EdgeInsets.only(bottom: index < _historyItems.length - 1 ? 16 : 0),
-        child: RequestCard(
-          data: _historyItems[index],
-          onMessageHost: () {},
+class _CheckedInReservationCard extends StatelessWidget {
+  final VoidCallback onCheckOut;
+
+  const _CheckedInReservationCard({required this.onCheckOut});
+
+  @override
+  Widget build(BuildContext context) {
+    return _PendingReservationCard(onOccupiedTap: () {}, onScanTap: onCheckOut);
+  }
+}
+
+class _DetailBlock extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool alignEnd;
+  final Color? valueColor;
+
+  const _DetailBlock(
+    this.label,
+    this.value, {
+    this.alignEnd = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: alignEnd
+          ? CrossAxisAlignment.end
+          : CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.nunito(
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textFaint,
+          ),
         ),
-      ),
+        const SizedBox(height: 3),
+        Text(
+          value,
+          style: GoogleFonts.nunito(
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+            color: valueColor ?? AppColors.text,
+          ),
+        ),
+      ],
     );
   }
+}
 
-  Widget _buildOptionCard({
-    required IconData icon,
-    required Color iconColor,
-    required Color iconBgColor,
-    required String title,
-    required String subtitle,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
+class _WarningActionButton extends StatelessWidget {
+  final String text;
+  final Color color;
+  final Color textColor;
+  final Color? borderColor;
+  final IconData? icon;
+  final VoidCallback onTap;
+
+  const _WarningActionButton({
+    required this.text,
+    required this.color,
+    required this.textColor,
+    required this.onTap,
+    this.borderColor,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        height: 46,
+        width: double.infinity,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isSelected ? AppColors.Primary : Colors.grey.shade200,
-            width: isSelected ? 2 : 1,
-          ),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: AppColors.Primary.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  )
-                ]
-              : [],
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+          border: borderColor != null ? Border.all(color: borderColor!) : null,
         ),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: iconBgColor,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  AppText(title, fontSize: 14, fontWeight: FontWeight.bold, color: Colors.black87),
-                  const SizedBox(height: 4),
-                  AppText(subtitle, fontSize: 11, color: Colors.grey.shade600),
-                ],
+            if (icon != null) ...[
+              Icon(icon, size: 17, color: textColor),
+              const SizedBox(width: 8),
+            ],
+            Text(
+              text,
+              style: GoogleFonts.nunito(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: textColor,
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ReservationPinLogo extends StatelessWidget {
+  const _ReservationPinLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 29,
+      height: 38,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            Icons.location_on_rounded,
+            size: 38,
+            color: AppColors.blueSky.withValues(alpha: 0.95),
+          ),
+          Positioned(
+            top: 5,
+            child: Text(
+              'P',
+              style: GoogleFonts.nunito(
+                fontSize: 15,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const Positioned(
+            bottom: 11,
+            child: Icon(
+              Icons.directions_car_filled_rounded,
+              size: 9,
+              color: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

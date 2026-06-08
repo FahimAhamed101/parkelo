@@ -36,7 +36,6 @@ import '../views/Feature/Driver/account/settings/account_settings_screen.dart';
 import '../hostPages/screens/account_page.dart';
 import '../hostPages/screens/account_settings_page.dart';
 import '../hostPages/screens/add_withdrawal_account_page.dart';
-import '../hostPages/screens/alerts_page.dart';
 import '../hostPages/screens/contact_us_page.dart';
 import '../hostPages/screens/faq_page.dart';
 import '../hostPages/screens/help_support_page.dart';
@@ -51,10 +50,11 @@ import '../hostPages/screens/profile_info_page.dart';
 import '../hostPages/screens/publish_parking_details_page.dart';
 import '../hostPages/screens/publish_parking_page.dart';
 import '../hostPages/screens/publish_parking_photos_page.dart';
+import '../hostPages/screens/publish_parking_prices_page.dart';
 import '../hostPages/screens/publish_parking_review_page.dart';
+import '../hostPages/screens/publish_parking_submitted_page.dart';
 import '../hostPages/screens/publish_parking_services_page.dart';
 import '../hostPages/screens/publish_parking_spaces_page.dart';
-import '../hostPages/screens/services_page.dart';
 import '../hostPages/screens/terms_condition_page.dart';
 import '../hostPages/screens/withdrawal_page.dart';
 
@@ -78,9 +78,9 @@ class AppRoutes {
   static const String favoritesScreen = "/favorites_screen";
   static const String accountScreen = "/account_screen";
   static const String notificationScreen = "/notification_screen";
-  static const String vehiclesScreen = "/vehicles_screen";
-  static const String addVehicleScreen = "/add_vehicle_screen";
-  static const String editVehicleScreen = "/edit_vehicle_screen";
+  static const String vehiclesScreen = "/vehicles";
+  static const String addVehicleScreen = "/vehicles/add";
+  static const String editVehicleScreen = "/vehicles/edit";
   static const String paymentScreen = "/payment_screen";
   static const String profileInfoScreen = "/profile_info_screen";
   static const String editProfileScreen = "/edit_profile_screen";
@@ -156,26 +156,35 @@ class AppRoutes {
       name: '/add-withdrawal-account',
       page: () => const AddWithdrawalAccountPage(),
     ),
-    GetPage(name: '/alerts', page: () => const AlertsPage()),
+    GetPage(
+      name: '/alerts',
+      page: () => const HostBottomNavScreen(initialIndex: 4),
+    ),
     GetPage(name: '/contact-us', page: () => const ContactUsPage()),
     GetPage(name: '/faq', page: () => const FaqPage()),
     GetPage(name: '/help-support', page: () => const HelpSupportPage()),
     GetPage(name: '/invite-friend', page: () => const InviteFriendPage()),
     GetPage(name: '/qr_page', page: () => const ParkingQrScreen()),
     GetPage(name: '/manual', page: () => const ManualRequestsPage()),
-    GetPage(name: '/parking-spaces', page: () => const ParkingSpacesPage()),
+    GetPage(
+      name: '/parking-spaces',
+      page: () => const HostBottomNavScreen(initialIndex: 1),
+    ),
     GetPage(
       name: '/parking-spaces-config',
       page: () => const ParkingSpacesConfigPage(),
     ),
     GetPage(
       name: '/prices-by-section',
-      page: () => const PricesBySectionPage(),
+      page: () => const HostBottomNavScreen(initialIndex: 3),
     ),
     GetPage(name: '/prices-global', page: () => const PricesGlobalPage()),
     GetPage(name: '/privacy-policy', page: () => const PrivacyPolicyPage()),
     GetPage(name: '/profile-info', page: () => const ProfileInfoPage()),
-    GetPage(name: '/services', page: () => const ServicesPage()),
+    GetPage(
+      name: '/services',
+      page: () => const HostBottomNavScreen(initialIndex: 2),
+    ),
     GetPage(name: '/publish-parking', page: () => const PublishParkingPage()),
     GetPage(
       name: '/publish-parking-details',
@@ -186,8 +195,16 @@ class AppRoutes {
       page: () => const PublishParkingPhotosPage(),
     ),
     GetPage(
+      name: '/publish-parking-prices',
+      page: () => const PublishParkingPricesPage(),
+    ),
+    GetPage(
       name: '/publish-parking-review',
       page: () => const PublishParkingReviewPage(),
+    ),
+    GetPage(
+      name: '/publish-parking-submitted',
+      page: () => const PublishParkingSubmittedPage(),
     ),
     GetPage(
       name: '/publish-parking-services',
@@ -199,7 +216,13 @@ class AppRoutes {
     ),
     GetPage(name: '/terms-condition', page: () => const TermsConditionPage()),
     GetPage(name: '/withdrawals', page: () => const IncomeWithdrawalsPage()),
-    GetPage(name: hostBottomNavScreen, page: () => const HostBottomNavScreen()),
+    GetPage(
+      name: hostBottomNavScreen,
+      page: () {
+        final tab = Get.arguments is int ? Get.arguments as int : 0;
+        return HostBottomNavScreen(initialIndex: tab);
+      },
+    ),
     GetPage(name: switchToHostScreen, page: () => const SwitchToHostScreen()),
   ];
 }

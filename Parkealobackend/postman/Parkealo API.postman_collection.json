@@ -1,0 +1,1169 @@
+{
+  "info": {
+    "name": "Parkealo API",
+    "_postman_id": "d59df1de-a5a0-4fa4-bff1-parkealoapi",
+    "description": "Postman collection for Parkealo backend APIs: auth, parking discovery, bookings, favorites, and host panel.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('Response is JSON', function () {",
+          "  pm.response.to.have.header('Content-Type');",
+          "});"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "parkingId",
+      "value": "parking-colonial-premium"
+    },
+    {
+      "key": "bookingId",
+      "value": ""
+    },
+    {
+      "key": "hostParkingId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/health"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Sign Up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);",
+                  "if (json.user && json.user.id) pm.environment.set('userId', json.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\",\n  \"email\": \"{{email}}\",\n  \"phoneNumber\": \"{{phoneNumber}}\",\n  \"vehiclePlate\": \"{{vehiclePlate}}\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\",\n  \"termsAccepted\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/signup"
+          }
+        },
+        {
+          "name": "Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);",
+                  "if (json.user && json.user.id) pm.environment.set('userId', json.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"identifier\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"rememberMe\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/signin"
+          }
+        },
+        {
+          "name": "Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/auth/me"
+          }
+        },
+        {
+          "name": "Forgot Password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.devResetCode) pm.environment.set('resetCode', json.devResetCode);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/forgot-password"
+          }
+        },
+        {
+          "name": "Resend Reset Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.devResetCode) pm.environment.set('resetCode', json.devResetCode);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/resend-reset-code"
+          }
+        },
+        {
+          "name": "Verify Reset Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.resetToken) pm.environment.set('resetToken', json.resetToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"{{resetCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/verify-reset-code"
+          }
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resetToken\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newPassword}}\",\n  \"confirmPassword\": \"{{newPassword}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/reset-password"
+          }
+        },
+        {
+          "name": "Social Sign In",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.token) pm.environment.set('token', json.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"providerUserId\": \"google-demo-user-{{email}}\",\n  \"email\": \"{{email}}\",\n  \"firstName\": \"Juan\",\n  \"lastName\": \"Perez\"\n}"
+            },
+            "url": "{{baseUrl}}/api/auth/social-signin"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Account",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/profile"
+          }
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Carlos Marte\",\n  \"phoneNumber\": \"+1 (809) 555-1234\",\n  \"email\": \"{{email}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/account/profile"
+          }
+        },
+        {
+          "name": "List Vehicles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.vehicles && json.vehicles[0]) pm.environment.set('vehicleId', json.vehicles[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/vehicles"
+          }
+        },
+        {
+          "name": "Add Vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.vehicle && json.vehicle.id) pm.environment.set('vehicleId', json.vehicle.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"sedan\",\n  \"plate\": \"{{vehiclePlate}}\",\n  \"brand\": \"Toyota\",\n  \"model\": \"Corolla\",\n  \"year\": 2020,\n  \"color\": \"White\",\n  \"notes\": \"Small scratch on rear bumper.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/account/vehicles"
+          }
+        },
+        {
+          "name": "Vehicle Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "Update Vehicle",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"color\": \"Blue\",\n  \"notes\": \"Updated notes for the host.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/account/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "Set Default Vehicle",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/vehicles/{{vehicleId}}/default"
+          }
+        },
+        {
+          "name": "Delete Vehicle",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/vehicles/{{vehicleId}}"
+          }
+        },
+        {
+          "name": "List Payment Methods",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.paymentMethods && json.paymentMethods[0]) pm.environment.set('paymentMethodId', json.paymentMethods[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/payment-methods"
+          }
+        },
+        {
+          "name": "Add Payment Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.paymentMethod && json.paymentMethod.id) pm.environment.set('paymentMethodId', json.paymentMethod.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cardNumber\": \"4111111111114242\",\n  \"cardholderName\": \"CARLOS MARTE\",\n  \"expiry\": \"12/28\"\n}"
+            },
+            "url": "{{baseUrl}}/api/account/payment-methods"
+          }
+        },
+        {
+          "name": "Set Default Payment Method",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/payment-methods/{{paymentMethodId}}/default"
+          }
+        },
+        {
+          "name": "Delete Payment Method",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/payment-methods/{{paymentMethodId}}"
+          }
+        },
+        {
+          "name": "Get Referrals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/referrals"
+          }
+        },
+        {
+          "name": "Create Referral Record",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"referredName\": \"Roberto P\",\n  \"status\": \"earned\",\n  \"amount\": 50\n}"
+            },
+            "url": "{{baseUrl}}/api/account/referrals"
+          }
+        },
+        {
+          "name": "Get Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/settings"
+          }
+        },
+        {
+          "name": "Update Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"language\": \"en\",\n  \"notifications\": {\n    \"bookingUpdates\": true,\n    \"promotions\": false,\n    \"referrals\": true,\n    \"hostUpdates\": true\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/account/settings"
+          }
+        },
+        {
+          "name": "Legal Index",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/legal"
+          }
+        },
+        {
+          "name": "Terms and Conditions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/legal/terms"
+          }
+        },
+        {
+          "name": "Privacy Policy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/legal/privacy"
+          }
+        },
+        {
+          "name": "Support Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/support"
+          }
+        },
+        {
+          "name": "Create Support Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"chat\",\n  \"subject\": \"Need help\",\n  \"message\": \"I need help with my booking.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/account/support/tickets"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/account/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Parking Discovery",
+      "item": [
+        {
+          "name": "List Parkings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.parkings && json.parkings[0]) pm.environment.set('parkingId', json.parkings[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/parkings?search=colonial&sort=price_low&vehicleType=car",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "parkings"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "colonial"
+                },
+                {
+                  "key": "sort",
+                  "value": "price_low"
+                },
+                {
+                  "key": "vehicleType",
+                  "value": "car"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Parking Details",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/parkings/{{parkingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bookings",
+      "item": [
+        {
+          "name": "Booking Quote",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parkingId\": \"{{parkingId}}\",\n  \"date\": \"today\",\n  \"arrivalTime\": \"10:30 AM\",\n  \"durationHours\": 2,\n  \"insuranceIncluded\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/quote"
+          }
+        },
+        {
+          "name": "Safety Check",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"leavingValuables\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/safety-check"
+          }
+        },
+        {
+          "name": "Create Booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.booking && json.booking.id) pm.environment.set('bookingId', json.booking.id);",
+                  "if (json.booking && json.booking.confirmationCode) pm.environment.set('confirmationCode', json.booking.confirmationCode);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parkingId\": \"{{parkingId}}\",\n  \"date\": \"today\",\n  \"arrivalTime\": \"10:30 AM\",\n  \"durationHours\": 2,\n  \"insuranceIncluded\": true,\n  \"paymentMethod\": \"card\",\n  \"cardLast4\": \"{{cardLast4}}\",\n  \"leavingValuables\": true,\n  \"safetyAcknowledged\": true\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings"
+          }
+        },
+        {
+          "name": "List My Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/bookings?tab=active",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "bookings"
+              ],
+              "query": [
+                {
+                  "key": "tab",
+                  "value": "active"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Booking Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}"
+          }
+        },
+        {
+          "name": "Booking Directions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/directions"
+          }
+        },
+        {
+          "name": "Notify Host",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/notify-host"
+          }
+        },
+        {
+          "name": "Check In",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirmationCode\": \"{{confirmationCode}}\"\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/check-in"
+          }
+        },
+        {
+          "name": "Extension Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/extension-options"
+          }
+        },
+        {
+          "name": "Extension Quote",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"additionalHours\": 1\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/extension-quote"
+          }
+        },
+        {
+          "name": "Extend Booking",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"additionalHours\": 1,\n  \"paymentMethod\": \"card\"\n}"
+            },
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/extend"
+          }
+        },
+        {
+          "name": "Check Out",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/check-out"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Favorites",
+      "item": [
+        {
+          "name": "List Favorites",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/favorites"
+          }
+        },
+        {
+          "name": "Add Favorite",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/favorites/{{parkingId}}"
+          }
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/favorites/{{parkingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Host",
+      "item": [
+        {
+          "name": "Host Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/summary"
+          }
+        },
+        {
+          "name": "Start Host Onboarding",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/onboarding"
+          }
+        },
+        {
+          "name": "Host Options",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/options"
+          }
+        },
+        {
+          "name": "Create Host Parking Draft",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.parking && json.parking.id) pm.environment.set('hostParkingId', json.parking.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Parking Carlos de Juan\",\n  \"zone\": \"Colonial Zone\",\n  \"sector\": \"Zone Colonial\",\n  \"addressLine\": \"Street number and building\",\n  \"latitude\": 18.4734,\n  \"longitude\": -69.8849,\n  \"contactPhone\": \"+1 (809) 000-0000\",\n  \"instagram\": \"@miparqueo\"\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings"
+          }
+        },
+        {
+          "name": "Host Parking Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}"
+          }
+        },
+        {
+          "name": "Step 1 - Location",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Parking Carlos de Juan\",\n  \"zone\": \"Colonial Zone\",\n  \"sector\": \"Zone Colonial\",\n  \"addressLine\": \"Street number and building\",\n  \"latitude\": 18.4734,\n  \"longitude\": -69.8849,\n  \"contactPhone\": \"+1 (809) 000-0000\",\n  \"instagram\": \"@miparqueo\"\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/location"
+          }
+        },
+        {
+          "name": "Step 2 - Details",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parkingType\": \"public\",\n  \"totalSpaces\": 10,\n  \"floors\": 1,\n  \"scheduleMode\": \"24_7\",\n  \"description\": \"Secure parking with cameras and easy access.\",\n  \"rules\": \"No trucks. Respect traffic signs.\"\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/details"
+          }
+        },
+        {
+          "name": "Step 3 - Spaces",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"floors\": 1,\n  \"identifiers\": [\"1\", \"2\", \"3\", \"4\", \"5\", \"6\", \"7\", \"8\", \"9\", \"10\"]\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/spaces"
+          }
+        },
+        {
+          "name": "Step 4 - Services",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"services\": {\n    \"covered\": true,\n    \"cameras\": true,\n    \"open_24_7\": true,\n    \"controlled_access\": true,\n    \"staff\": true,\n    \"ev_charging\": false,\n    \"valet\": true,\n    \"private\": false,\n    \"wifi\": true,\n    \"accessible\": true,\n    \"motorcycles\": true,\n    \"bathrooms\": true\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/services"
+          }
+        },
+        {
+          "name": "Step 5 - Photos",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"photos\": [\n    \"https://example.com/parking-main.jpg\",\n    \"https://example.com/parking-entry.jpg\",\n    \"https://example.com/parking-spaces.jpg\"\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/photos"
+          }
+        },
+        {
+          "name": "Review Host Parking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/review"
+          }
+        },
+        {
+          "name": "Submit Host Parking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/submit"
+          }
+        },
+        {
+          "name": "Host Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/dashboard"
+          }
+        },
+        {
+          "name": "Host Income",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/income"
+          }
+        },
+        {
+          "name": "Get Bank Account",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/bank-account"
+          }
+        },
+        {
+          "name": "Save Bank Account",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bankName\": \"Banco Popular\",\n  \"accountType\": \"checking\",\n  \"accountNumber\": \"01234567890\",\n  \"accountHolderName\": \"Juan Carlos Perez\",\n  \"identityDocument\": \"001-1234567-8\"\n}"
+            },
+            "url": "{{baseUrl}}/api/host/bank-account"
+          }
+        },
+        {
+          "name": "Request Withdrawal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100\n}"
+            },
+            "url": "{{baseUrl}}/api/host/withdrawals"
+          }
+        },
+        {
+          "name": "Get Pricing",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/pricing"
+          }
+        },
+        {
+          "name": "Save Pricing",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pricingMode\": \"per_section\",\n  \"dynamicPricing\": {\n    \"enabled\": true,\n    \"occupancyThresholdPercent\": 80,\n    \"peakIncreasePercent\": 20\n  },\n  \"sections\": [\n    {\n      \"code\": \"A\",\n      \"name\": \"Ground Floor\",\n      \"enabled\": true,\n      \"rate\": { \"hourly\": 150, \"daily\": 800, \"weekly\": 4500 }\n    },\n    {\n      \"code\": \"B\",\n      \"name\": \"Level 1\",\n      \"enabled\": true,\n      \"rate\": { \"hourly\": 120, \"daily\": 650, \"weekly\": 3800 }\n    }\n  ],\n  \"overtime\": {\n    \"multiplier\": 1.5,\n    \"graceMinutes\": 0\n  }\n}"
+            },
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/pricing"
+          }
+        },
+        {
+          "name": "Host Alerts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/alerts"
+          }
+        },
+        {
+          "name": "Manual Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/manual-requests"
+          }
+        },
+        {
+          "name": "Parking QR",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/qr"
+          }
+        },
+        {
+          "name": "Approve Manual Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/requests/{{bookingId}}/approve"
+          }
+        },
+        {
+          "name": "Decline Manual Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Space no longer available\"\n}"
+            },
+            "url": "{{baseUrl}}/api/host/requests/{{bookingId}}/decline"
+          }
+        }
+      ]
+    }
+  ]
+}

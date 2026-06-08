@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
-import '../widgets/host_bottom_nav.dart';
+import '../widgets/host_panel_chrome.dart';
 
 const _primaryBlue = Color(0xFF1556B7);
 const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
 const _ink = Color(0xFF111827);
 const _muted = Color(0xFF8A96A8);
 const _line = Color(0xFFE1EAF5);
+const _green = Color(0xFF08934C);
 const _warningBg = Color(0xFFFFF4D8);
 const _warningText = Color(0xFFB45309);
 
@@ -22,9 +21,9 @@ class PricesBySectionPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
           _PricingModeSelector(isGlobal: false),
-          SizedBox(height: 8),
+          SizedBox(height: 13),
           _DynamicPricingCard(),
-          SizedBox(height: 10),
+          SizedBox(height: 13),
           _SectionRateCard(
             prefix: 'A',
             title: 'Ground Floor',
@@ -33,7 +32,7 @@ class PricesBySectionPage extends StatelessWidget {
             day: 'RD\$800',
             week: 'RD\$4500',
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 13),
           _SectionRateCard(
             prefix: 'B',
             title: 'Level 1',
@@ -42,7 +41,7 @@ class PricesBySectionPage extends StatelessWidget {
             day: 'RD\$650',
             week: 'RD\$3800',
           ),
-          SizedBox(height: 10),
+          SizedBox(height: 13),
           _OvertimeCard(),
         ],
       ),
@@ -60,9 +59,9 @@ class PricesGlobalPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
           _PricingModeSelector(isGlobal: true),
-          SizedBox(height: 10),
+          SizedBox(height: 13),
           _GlobalRatesCard(),
-          SizedBox(height: 10),
+          SizedBox(height: 13),
           _OvertimeCard(),
         ],
       ),
@@ -77,86 +76,21 @@ class _PricesScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-      ),
-      child: Scaffold(
-        backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            _PricesHeader(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(8, 9, 8, 14),
-                child: child,
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.fromLTRB(8, 0, 8, 9),
-              child: _SavePricesButton(),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PricesHeader extends StatelessWidget {
-  const _PricesHeader({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(12)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 12),
-          child: SizedBox(
-            height: 38,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 38,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 17,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Prices',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 40),
-              ],
+    return HostPanelScaffold(
+      selectedTab: HostPanelTab.prices,
+      child: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(8, 16, 8, 14),
+              child: child,
             ),
           ),
-        ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(8, 0, 8, 14),
+            child: _SavePricesButton(),
+          ),
+        ],
       ),
     );
   }
@@ -173,22 +107,22 @@ class _PricingModeSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.only(left: 1, bottom: 6),
+          padding: EdgeInsets.only(left: 8, bottom: 10),
           child: Text(
             'Pricing mode',
             style: TextStyle(
               color: _ink,
-              fontSize: 9.2,
+              fontSize: 16,
               fontWeight: FontWeight.w900,
             ),
           ),
         ),
         Container(
-          height: 36,
-          padding: const EdgeInsets.all(3),
+          height: 42,
+          padding: const EdgeInsets.all(4),
           decoration: BoxDecoration(
             color: const Color(0xFFEAF1FA),
-            borderRadius: BorderRadius.circular(7),
+            borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
             children: [
@@ -246,7 +180,7 @@ class _ModeSegment extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(5),
+          borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: isSelected ? _actionBlue : Colors.transparent,
           ),
@@ -265,7 +199,7 @@ class _ModeSegment extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: isSelected ? _primaryBlue : const Color(0xFF667085),
-                  fontSize: 8.5,
+                  fontSize: 11,
                   fontWeight: isSelected ? FontWeight.w900 : FontWeight.w600,
                 ),
               ),
@@ -283,7 +217,7 @@ class _DynamicPricingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WhiteCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
@@ -301,7 +235,7 @@ class _DynamicPricingCard extends StatelessWidget {
           ),
           SizedBox(height: 9),
           _WarningNote(
-            text: 'Active — A 20% extra is applied during peak hours',
+            text: 'Active - A 20% extra is applied during peak hours',
           ),
         ],
       ),
@@ -315,7 +249,7 @@ class _GlobalRatesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WhiteCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
@@ -380,25 +314,25 @@ class _SectionRateCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WhiteCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 11),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: _actionBlue,
-                  borderRadius: BorderRadius.circular(7),
+                  borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   prefix,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 10,
+                    fontSize: 16,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
@@ -452,7 +386,7 @@ class _OvertimeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _WhiteCard(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: const [
@@ -506,7 +440,15 @@ class _WhiteCard extends StatelessWidget {
       padding: padding,
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _line),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 14,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: child,
     );
@@ -530,7 +472,7 @@ class _CardTitleBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: _ink,
-            fontSize: 10,
+            fontSize: 15,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -541,7 +483,7 @@ class _CardTitleBlock extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: _muted,
-            fontSize: 7.1,
+            fontSize: 10,
             height: 1.2,
             fontWeight: FontWeight.w500,
           ),
@@ -557,17 +499,17 @@ class _TinySwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 31,
-      height: 17,
-      padding: const EdgeInsets.all(2),
+      width: 44,
+      height: 26,
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: _actionBlue,
+        color: _green,
         borderRadius: BorderRadius.circular(999),
       ),
       alignment: Alignment.centerRight,
       child: Container(
-        width: 13,
-        height: 13,
+        width: 20,
+        height: 20,
         decoration: const BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
@@ -602,7 +544,7 @@ class _RateBox extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: _muted,
-              fontSize: 6.6,
+              fontSize: 9,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -613,7 +555,7 @@ class _RateBox extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: _primaryBlue,
-              fontSize: 9.4,
+              fontSize: 13,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -639,7 +581,7 @@ class _RateFooter extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: _muted,
-            fontSize: 6.8,
+            fontSize: 10,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -650,7 +592,7 @@ class _RateFooter extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: _ink,
-            fontSize: 8.7,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -676,7 +618,7 @@ class _PreviewRow extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: _muted,
-              fontSize: 8.2,
+              fontSize: 11,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -687,7 +629,7 @@ class _PreviewRow extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
           style: const TextStyle(
             color: _ink,
-            fontSize: 8.2,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -721,7 +663,7 @@ class _MultiplierChip extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: isSelected ? const Color(0xFFB45309) : _muted,
-          fontSize: 8.2,
+          fontSize: 11,
           fontWeight: FontWeight.w900,
         ),
       ),
@@ -746,7 +688,7 @@ class _WarningNote extends StatelessWidget {
         text,
         style: const TextStyle(
           color: _warningText,
-          fontSize: 7.2,
+          fontSize: 11,
           height: 1.25,
           fontWeight: FontWeight.w600,
         ),
@@ -761,20 +703,22 @@ class _SavePricesButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 34,
+      height: 49,
       width: double.infinity,
       child: ElevatedButton(
         onPressed: () {},
         style: ElevatedButton.styleFrom(
-          backgroundColor: _actionBlue,
+          backgroundColor: _green,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
         child: const Text(
           'Save prices',
-          style: TextStyle(fontSize: 12.2, fontWeight: FontWeight.w900),
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
       ),
     );

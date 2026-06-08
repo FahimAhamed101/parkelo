@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
+import '../../../Authentication/controllers/auth_controller.dart';
 import '../../../../../utils/AppColor/app_colors.dart';
 import '../../../../base/AppButton/appButton.dart';
 import '../../../../base/AppText/appText.dart';
@@ -16,13 +17,27 @@ class EditProfileScreen extends StatefulWidget {
 }
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
-  final TextEditingController nameController = TextEditingController(text: "Shahin Alam");
-  final TextEditingController emailController = TextEditingController(text: "alice@example.com");
-  final TextEditingController phoneController = TextEditingController(text: "+1 (555) 123-4567");
-  final TextEditingController licenseController = TextEditingController(text: "e.g.A4545");
+  late final AuthController _authController;
+  final TextEditingController nameController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController phoneController = TextEditingController();
+  final TextEditingController licenseController = TextEditingController();
 
   File? _pickedImage;
   final ImagePicker _picker = ImagePicker();
+
+  @override
+  void initState() {
+    super.initState();
+    _authController = AuthController.instance;
+    final profile = _authController.profile.value;
+    final user = _authController.user.value;
+    nameController.text = profile?.fullName ?? user?.fullName ?? '';
+    emailController.text = user?.email ?? '';
+    phoneController.text = user?.phoneNumber ?? '';
+    licenseController.text =
+        profile?.licensePlateLabel ?? user?.vehiclePlate ?? '';
+  }
 
   Future<void> _pickImage() async {
     showModalBottomSheet(
@@ -38,27 +53,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             const SizedBox(height: 8),
             Center(
               child: Container(
-                width: 40, height: 4,
-                decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(2)),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             ListTile(
-              leading: const Icon(Icons.camera_alt_outlined, color: AppColors.Primary),
-              title: AppText("Take a photo", fontSize: 14, fontWeight: FontWeight.w500),
+              leading: const Icon(
+                Icons.camera_alt_outlined,
+                color: AppColors.Primary,
+              ),
+              title: AppText(
+                "Take a photo",
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                final xFile = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
-                if (xFile != null) setState(() => _pickedImage = File(xFile.path));
+                final xFile = await _picker.pickImage(
+                  source: ImageSource.camera,
+                  imageQuality: 80,
+                );
+                if (xFile != null) {
+                  setState(() => _pickedImage = File(xFile.path));
+                }
               },
             ),
             ListTile(
-              leading: const Icon(Icons.photo_library_outlined, color: AppColors.Primary),
-              title: AppText("Choose from gallery", fontSize: 14, fontWeight: FontWeight.w500),
+              leading: const Icon(
+                Icons.photo_library_outlined,
+                color: AppColors.Primary,
+              ),
+              title: AppText(
+                "Choose from gallery",
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                final xFile = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
-                if (xFile != null) setState(() => _pickedImage = File(xFile.path));
+                final xFile = await _picker.pickImage(
+                  source: ImageSource.gallery,
+                  imageQuality: 80,
+                );
+                if (xFile != null) {
+                  setState(() => _pickedImage = File(xFile.path));
+                }
               },
             ),
             const SizedBox(height: 8),
@@ -95,13 +138,17 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
                       child: CircleAvatar(
                         radius: 45,
                         backgroundImage: _pickedImage != null
                             ? FileImage(_pickedImage!) as ImageProvider
                             : const NetworkImage(
-                                "https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=200&auto=format&fit=crop"),
+                                "https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=200&auto=format&fit=crop",
+                              ),
                       ),
                     ),
                     Positioned(
@@ -114,7 +161,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                         ),
-                        child: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14),
+                        child: const Icon(
+                          Icons.camera_alt_outlined,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                   ],
@@ -144,7 +195,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               borderColor: Colors.grey.shade300,
             ),
             const SizedBox(height: 4),
-            AppText("Email cannot be changed", fontSize: 11, color: Colors.grey.shade500),
+            AppText(
+              "Email cannot be changed",
+              fontSize: 11,
+              color: Colors.grey.shade500,
+            ),
             const SizedBox(height: 16),
 
             _buildLabel("Phone"),
@@ -163,10 +218,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               controller: licenseController,
               hintText: "Vehicle License Plate",
               prefixIcon: const Icon(Icons.badge_outlined, color: Colors.grey),
+              enabled: false,
+              filColor: Colors.grey.shade100,
+              borderColor: Colors.grey.shade300,
+            ),
+            const SizedBox(height: 4),
+            AppText(
+              "Use Vehicles to update license plates",
+              fontSize: 11,
+              color: Colors.grey.shade500,
             ),
             const SizedBox(height: 32),
 
-            AppButton(text: "Save Changes", onTap: () => Get.back()),
+            Obx(
+              () => AppButton(
+                text: _authController.isLoading.value
+                    ? "Saving..."
+                    : "Save Changes",
+                onTap: _authController.isLoading.value
+                    ? () {}
+                    : () => _authController.updateProfile(
+                        fullName: nameController.text,
+                        phoneNumber: phoneController.text,
+                        email: emailController.text,
+                      ),
+              ),
+            ),
             const SizedBox(height: 24),
           ],
         ),
@@ -175,6 +252,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   Widget _buildLabel(String text) {
-    return AppText(text, fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade800);
+    return AppText(
+      text,
+      fontSize: 12,
+      fontWeight: FontWeight.w600,
+      color: Colors.grey.shade800,
+    );
   }
 }

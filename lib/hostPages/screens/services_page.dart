@@ -1,11 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
-import '../widgets/host_bottom_nav.dart';
+import '../widgets/host_panel_chrome.dart';
 
 const _primaryBlue = Color(0xFF1556B7);
-const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
 const _ink = Color(0xFF111827);
 const _muted = Color(0xFF8A96A8);
 const _line = Color(0xFFE5EDF6);
@@ -115,95 +111,21 @@ class ServicesPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: Colors.white,
-        systemNavigationBarIconBrightness: Brightness.dark,
-      ),
+    return HostPanelScaffold(
+      selectedTab: HostPanelTab.services,
       child: MediaQuery(
         data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-        child: Scaffold(
-          backgroundColor: _pageBg,
-          body: Column(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(8, 16, 8, 18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _ServicesHeader(onBack: () => Navigator.maybePop(context)),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: const [
-                      _ActiveServicesCard(),
-                      SizedBox(height: 12),
-                      _SectionTitle('Parking services'),
-                      SizedBox(height: 8),
-                      _ServicesListCard(services: _services),
-                      SizedBox(height: 12),
-                      _SaveServicesButton(),
-                    ],
-                  ),
-                ),
-              ),
+              const _ActiveServicesCard(),
+              const SizedBox(height: 16),
+              const _ServicesListCard(services: _services),
+              const SizedBox(height: 14),
+              const _SaveServicesButton(),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ServicesHeader extends StatelessWidget {
-  const _ServicesHeader({required this.onBack});
-
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(18)),
-      ),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 2, 13),
-          child: SizedBox(
-            height: 38,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 40,
-                    height: 38,
-                  ),
-                  icon: const Icon(
-                    Icons.arrow_back_ios_new_rounded,
-                    color: Colors.white,
-                    size: 17,
-                  ),
-                ),
-                const Expanded(
-                  child: Text(
-                    'Services',
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 40),
-              ],
-            ),
           ),
         ),
       ),
@@ -218,10 +140,10 @@ class _ActiveServicesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       constraints: const BoxConstraints(minHeight: 72),
-      padding: const EdgeInsets.fromLTRB(13, 11, 12, 11),
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
       decoration: BoxDecoration(
         color: _primaryBlue,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: const [
           BoxShadow(
             color: Color(0x18000000),
@@ -239,12 +161,12 @@ class _ActiveServicesCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Text(
-                  'Active services enabled',
+                  'Active services',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: Color(0xFFD9E7FF),
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -258,7 +180,7 @@ class _ActiveServicesCard extends StatelessWidget {
                         text: '5',
                         style: TextStyle(
                           color: Colors.white,
-                          fontSize: 20,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -266,7 +188,7 @@ class _ActiveServicesCard extends StatelessWidget {
                         text: ' of 12',
                         style: TextStyle(
                           color: Color(0xFFD9E7FF),
-                          fontSize: 10,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -330,48 +252,6 @@ class _TinyServiceIcon extends StatelessWidget {
   }
 }
 
-class _SectionTitle extends StatelessWidget {
-  const _SectionTitle(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            text,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _primaryBlue,
-              fontSize: 10.5,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: const Color(0xFFE9FFF4),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: const Color(0xFFB7F3CC)),
-          ),
-          child: const Text(
-            '5 active',
-            style: TextStyle(
-              color: _success,
-              fontSize: 8,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _ServicesListCard extends StatelessWidget {
   const _ServicesListCard({required this.services});
 
@@ -380,10 +260,10 @@ class _ServicesListCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: _line),
         boxShadow: const [
           BoxShadow(
@@ -394,7 +274,17 @@ class _ServicesListCard extends StatelessWidget {
         ],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'Parking services',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 10),
           for (var i = 0; i < services.length; i++) ...[
             _ServiceRow(data: services[i]),
             if (i != services.length - 1)
@@ -419,18 +309,23 @@ class _ServiceRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         onTap: () {},
         child: SizedBox(
-          height: 38,
+          height: 58,
           child: Row(
             children: [
               Container(
-                width: 28,
-                height: 28,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
                   color: data.iconBg,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: data.enabled
+                        ? const Color(0xFFB7E4C7)
+                        : const Color(0xFFE0E7EF),
+                  ),
                 ),
-                child: Icon(data.icon, color: data.iconColor, size: 15),
+                child: Icon(data.icon, color: data.iconColor, size: 22),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -444,7 +339,7 @@ class _ServiceRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _ink,
-                        fontSize: 10.1,
+                        fontSize: 13,
                         fontWeight: FontWeight.w900,
                       ),
                     ),
@@ -455,7 +350,7 @@ class _ServiceRow extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         color: _muted,
-                        fontSize: 7.2,
+                        fontSize: 10,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -463,21 +358,6 @@ class _ServiceRow extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              SizedBox(
-                width: 22,
-                child: Text(
-                  data.enabled ? 'On' : 'Off',
-                  textAlign: TextAlign.right,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: data.enabled ? _primaryBlue : _muted,
-                    fontSize: 7.8,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 7),
               _MiniSwitch(isOn: data.enabled),
             ],
           ),
@@ -495,17 +375,21 @@ class _MiniSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 32,
-      height: 18,
+      width: 42,
+      height: 24,
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: isOn ? _primaryBlue : const Color(0xFFE5EAF0),
+        color: isOn ? _success : const Color(0xFFE5EAF0),
         borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: isOn ? _success : const Color(0xFFC9D5E3),
+          width: 1,
+        ),
       ),
       alignment: isOn ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
-        width: 14,
-        height: 14,
+        width: 20,
+        height: 20,
         decoration: const BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
@@ -528,19 +412,21 @@ class _SaveServicesButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 38,
+      height: 49,
       child: ElevatedButton(
         onPressed: () {},
         style: ElevatedButton.styleFrom(
-          backgroundColor: _actionBlue,
+          backgroundColor: _success,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
         child: const Text(
-          'Save Services',
-          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w900),
+          'Save services',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
         ),
       ),
     );

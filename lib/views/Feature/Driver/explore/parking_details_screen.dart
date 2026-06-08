@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
 import '../../../base/AppText/appText.dart';
+import 'booking_flow_models.dart';
+import 'widgets/driver_flow_nav_bar.dart';
 
 class ParkingDetailsScreen extends StatefulWidget {
   const ParkingDetailsScreen({super.key});
@@ -13,36 +16,44 @@ class ParkingDetailsScreen extends StatefulWidget {
 }
 
 class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
-  String selectedDuration = '2h';
-  bool bookForAnother = true;
-  bool insuranceActive = true;
-  DateTime selectedDate = DateTime.now();
-  String? selectedTime;
+  static const List<String> _arrivalTimes = [
+    '7:00 AM',
+    '7:30 AM',
+    '8:00 AM',
+    '8:30 AM',
+  ];
+  static const List<int> _durations = [1, 2, 4, 6, 8, 12];
+
+  late BookingDraft _draft;
+  late bool _fromFavorites;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    _fromFavorites =
+        args is Map<String, dynamic> && args['fromFavorites'] == true;
+    _draft = BookingDraft.fromMap(args is Map<String, dynamic> ? args : null);
+  }
 
   bool get _isToday {
     final now = DateTime.now();
-    return selectedDate.year == now.year &&
-        selectedDate.month == now.month &&
-        selectedDate.day == now.day;
-  }
-
-  String get _formattedDate {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[selectedDate.month - 1]} ${selectedDate.day}, ${selectedDate.year}';
+    return _draft.date.year == now.year &&
+        _draft.date.month == now.month &&
+        _draft.date.day == now.day;
   }
 
   Future<void> _pickDate() async {
     final now = DateTime.now();
     final picked = await showDatePicker(
       context: context,
-      initialDate: selectedDate,
+      initialDate: _draft.date,
       firstDate: now,
       lastDate: now.add(const Duration(days: 90)),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.light(
-            primary: AppColors.Primary,
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.blue,
             onPrimary: Colors.white,
             surface: Colors.white,
           ),
@@ -50,48 +61,60 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
         child: child!,
       ),
     );
-    if (picked != null) setState(() => selectedDate = picked);
+
+    if (picked != null) {
+      setState(() {
+        _draft = _draft.copyWith(date: picked);
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F8F4),
-      bottomNavigationBar: _buildBottomBar(),
+      backgroundColor: AppColors.surface,
+      bottomNavigationBar: const DriverFlowNavBar(selectedIndex: 0),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildTopImage(),
+            _buildHero(),
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderInfo(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   _buildManagedByCard(),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   _buildAvailableService(),
-                  const SizedBox(height: 24),
-                  AppText("When are you arriving?", fontSize: 14, fontWeight: FontWeight.bold),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
+                  AppText(
+                    'When are you arriving?',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                  const SizedBox(height: 14),
                   _buildDateSelector(),
-                  const SizedBox(height: 16),
-                  AppText("ARRIVAL TIME", fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                  const SizedBox(height: 14),
+                  _sectionLabel('Arrival time'),
                   const SizedBox(height: 8),
                   _buildTimeSelector(),
-                  const SizedBox(height: 16),
-                  AppText("DURATION", fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+                  const SizedBox(height: 14),
+                  _sectionLabel('Duration'),
                   const SizedBox(height: 8),
                   _buildDurationSelector(),
-                  const SizedBox(height: 24),
-                  _buildSwitches(),
-                  const SizedBox(height: 16),
-                  _buildProtectionBanner(),
-                  const SizedBox(height: 24),
-                  _buildPriceSummary(),
                   const SizedBox(height: 20),
+                  _buildSwitches(),
+                  if (_draft.insuranceEnabled) ...[
+                    const SizedBox(height: 14),
+                    _buildProtectionBanner(),
+                  ],
+                  const SizedBox(height: 20),
+                  _buildPriceSummary(),
+                  const SizedBox(height: 18),
+                  _buildBottomBar(),
                 ],
               ),
             ),
@@ -101,122 +124,81 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     );
   }
 
-  void _onBookTap() {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  Widget _buildHero() {
+    return Stack(
+      children: [
+        Container(
+          height: 248,
+          width: double.infinity,
+          decoration: const BoxDecoration(gradient: AppColors.gradPrivate),
+          child: Stack(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.warning_amber_rounded, color: AppColors.DarkBlue, size: 32),
-              ),
-              const SizedBox(height: 16),
-              AppText("Security Warning", fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
-              const SizedBox(height: 12),
-              Text(
-                "Remember not to leave valuables inside your vehicle. Parkealo App is not responsible for the loss of items or damage to the vehicle.",
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w400,
-                  color: Color(0xFF94A3B8),
-                ),
-                textAlign: TextAlign.justify,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.pop(ctx),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          border: Border.all(color: AppColors.Primary, width: 1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: AppText("Cancel", fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.Primary),
-                      ),
-                    ),
+              Positioned(
+                left: -40,
+                top: 80,
+                child: Container(
+                  width: 120,
+                  height: 120,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.white.withValues(alpha: 0.05),
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () {
-                        Navigator.pop(ctx);
-                        Get.toNamed(AppRoutes.confirmPayScreen);
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: AppColors.Primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        alignment: Alignment.center,
-                        child: AppText("Understood", fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                      ),
-                    ),
+                ),
+              ),
+              Positioned(
+                right: -30,
+                bottom: 18,
+                child: Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    color: Colors.white.withValues(alpha: 0.04),
                   ),
-                ],
+                ),
+              ),
+              Align(
+                alignment: Alignment.center,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: const [
+                      _HeroParkingPin(),
+                      SizedBox(height: 14),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          _HeroMetaChip(label: 'Metro L1 - 200m'),
+                          _HeroMetaChip(label: 'OMSA - 50m'),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  String get _endTime {
-    final time = selectedTime ?? '10:30 AM';
-    final parts = time.split(':');
-    if (parts.length < 2) return time;
-    int hour = int.tryParse(parts[0]) ?? 10;
-    final minPart = parts[1].replaceAll(RegExp(r'[^0-9]'), '');
-    final isPm = time.contains('PM');
-    if (isPm && hour != 12) hour += 12;
-    final hours = int.tryParse(selectedDuration.replaceAll('h', '')) ?? 2;
-    final endHour = (hour + hours) % 24;
-    final endMin = int.tryParse(minPart) ?? 0;
-    final endPeriod = endHour >= 12 ? 'PM' : 'AM';
-    final displayHour = endHour > 12 ? endHour - 12 : (endHour == 0 ? 12 : endHour);
-    return '$displayHour:${endMin.toString().padLeft(2, '0')} $endPeriod';
-  }
-
-  Widget _buildTopImage() {
-    return Stack(
-      children: [
-        Image.network(
-          "https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=600&auto=format&fit=crop",
-          width: double.infinity,
-          height: 220,
-          fit: BoxFit.cover,
-        ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
-          left: 20,
-          child: GestureDetector(
+          left: 14,
+          child: _circleTopButton(
             onTap: () => Get.back(),
-            child: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 26),
+            icon: Icons.arrow_back_ios_new_rounded,
           ),
         ),
-        if (!(Get.arguments != null && Get.arguments['fromFavorites'] == true))
+        if (!_fromFavorites)
           Positioned(
             top: MediaQuery.of(context).padding.top + 10,
-            right: 20,
-            child: const Icon(Icons.favorite_border, color: Colors.white, size: 26,),
-          )
+            right: 14,
+            child: _circleTopButton(
+              onTap: () {},
+              icon: Icons.favorite_border_rounded,
+            ),
+          ),
       ],
     );
   }
@@ -226,40 +208,34 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
               child: AppText(
-                "Parking Colonial Premium",
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1C1C1C),
+                _draft.parkingName,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
               ),
             ),
-            Row(
-              children: [
-                const Icon(Icons.star, color: Colors.amber, size: 16),
-                const SizedBox(width: 4),
-                AppText("4.87", fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1C1C1C)),
-              ],
-            )
+            const Icon(Icons.star_rounded, color: AppColors.text, size: 17),
+            const SizedBox(width: 4),
+            AppText(
+              _draft.rating.toStringAsFixed(2),
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+            ),
           ],
         ),
         const SizedBox(height: 4),
-        AppText(
-          "Colonial Zone, SD · 0.2 km · 128 reviews",
-          fontSize: 12,
-          color: Color(0xFF4C4C4C),
-        ),
+        AppText(_draft.zoneLabel, fontSize: 12, color: AppColors.textSub),
         const SizedBox(height: 12),
         Row(
           children: [
-            _buildTag("Public", Color(0xFFECFDF5), AppColors.LightGreen),
+            _buildTag('Public', AppColors.greenLt, AppColors.green),
             const SizedBox(width: 8),
-            _buildTag("24/7", const Color(0xFFEFF6FF), const Color(0xFF1D4ED8)),
+            _buildTag('24/7', AppColors.blueLt, AppColors.blue),
           ],
-        )
+        ),
       ],
     );
   }
@@ -270,13 +246,13 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: textColor.withOpacity(0.3)),
+        border: Border.all(color: textColor.withValues(alpha: 0.25)),
       ),
       child: AppText(
         text,
         fontSize: 11,
         color: textColor,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w800,
       ),
     );
   }
@@ -286,23 +262,18 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 16,
-            spreadRadius: 2,
-            offset: const Offset(0, 6),
-          )
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.shadow,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           const CircleAvatar(
             radius: 25,
-            backgroundImage: NetworkImage(
-              "https://images.unsplash.com/photo-1590674899484-d5640e854abe?q=80&w=100&auto=format&fit=crop",
+            backgroundColor: AppColors.blueLt,
+            child: Icon(
+              Icons.admin_panel_settings_rounded,
+              color: AppColors.blue,
             ),
           ),
           const SizedBox(width: 12),
@@ -310,27 +281,44 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                AppText("Managed by Parkealo", fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF1C1C1C)),
-                SizedBox(height: 8),
-                AppText("128 reviews · Verified", fontSize: 11, color: Colors.grey.shade500),
+                AppText(
+                  'Managed by Parkealo',
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                ),
+                const SizedBox(height: 4),
+                AppText(
+                  '${_draft.reviews} reviews - Verified',
+                  fontSize: 11,
+                  color: AppColors.textSub,
+                ),
               ],
             ),
           ),
-          SizedBox(width: 2),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             decoration: BoxDecoration(
-              border: Border.all(color: AppColors.Green.withOpacity(0.5)),
+              color: AppColors.greenLt,
               borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.greenMid),
             ),
             child: Row(
               children: [
-                const Icon(Icons.check_circle, color: AppColors.Green, size: 14),
+                const Icon(
+                  Icons.check_circle,
+                  color: AppColors.green,
+                  size: 14,
+                ),
                 const SizedBox(width: 4),
-                AppText("Verified", fontSize: 11, color: AppColors.Green, fontWeight: FontWeight.w600),
+                AppText(
+                  'Verified',
+                  fontSize: 11,
+                  color: AppColors.green,
+                  fontWeight: FontWeight.w800,
+                ),
               ],
             ),
-          )
+          ),
         ],
       ),
     );
@@ -341,50 +329,48 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.12),
-            blurRadius: 16,
-            spreadRadius: 2,
-            offset: const Offset(0, 6),
-          )
-        ],
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.shadow,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AppText("Available Service", fontSize: 12, fontWeight: FontWeight.bold),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: const [
+          AppText(
+            'Available services',
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+          SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
             children: [
-              _buildServiceIcon(Icons.videocam_outlined, "CCTV"),
-              _buildServiceIcon(Icons.electrical_services, "EV Charge"),
-              _buildServiceIcon(Icons.house_outlined, "Covered"),
-              _buildServiceIcon(Icons.access_time, "24/7 Open"),
-              _buildServiceIcon(Icons.accessible, "Accessible"),
+              _ServicePill(icon: Icons.roofing_outlined, label: 'Covered'),
+              _ServicePill(
+                icon: Icons.electric_car_outlined,
+                label: 'Charge EV',
+              ),
+              _ServicePill(icon: Icons.videocam_outlined, label: 'Cameras'),
+              _ServicePill(icon: Icons.security_outlined, label: 'Valet'),
+              _ServicePill(icon: Icons.access_time_rounded, label: '24/7'),
+              _ServicePill(
+                icon: Icons.lock_outline_rounded,
+                label: 'Ctrl. access',
+              ),
+              _ServicePill(
+                icon: Icons.person_outline_rounded,
+                label: 'Personal',
+              ),
+              _ServicePill(
+                icon: Icons.block_outlined,
+                label: 'Private',
+                muted: true,
+              ),
             ],
-          )
+          ),
         ],
       ),
-    );
-  }
-
-  Widget _buildServiceIcon(IconData icon, String text) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFFF5F6FA),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(icon, size: 20, color: Colors.grey.shade700),
-        ),
-        const SizedBox(height: 6),
-        AppText(text, fontSize: 9, color: Colors.grey.shade600, fontWeight: FontWeight.w500),
-      ],
     );
   }
 
@@ -392,7 +378,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppText("DATE", fontSize: 12, fontWeight: FontWeight.w600, color: Colors.grey.shade600),
+        _sectionLabel('Date'),
         const SizedBox(height: 8),
         GestureDetector(
           onTap: _pickDate,
@@ -400,29 +386,40 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade200),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
                 if (_isToday)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD9EFFC),
+                      color: AppColors.blueLt,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: AppText("TODAY", fontSize: 11, color: AppColors.Primary, fontWeight: FontWeight.bold),
+                    child: AppText(
+                      'TODAY',
+                      fontSize: 11,
+                      color: AppColors.blue,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
                 if (_isToday) const SizedBox(width: 12),
                 Expanded(
                   child: AppText(
-                    _isToday ? "Today" : _formattedDate,
+                    _isToday ? 'Today' : _draft.fullDateLabel,
                     fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
+                const Icon(
+                  Icons.keyboard_arrow_down_rounded,
+                  color: AppColors.textFaint,
+                ),
               ],
             ),
           ),
@@ -432,75 +429,76 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
   }
 
   Widget _buildTimeSelector() {
-    final times = ["7:00 AM", "7:30 AM", "8:00 AM", "8:30 AM"];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: times.map((t) => GestureDetector(
-        onTap: () => setState(() => selectedTime = t),
-        child: Container(
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selectedTime == t ? AppColors.Primary : Colors.grey.shade200,
-              width: selectedTime == t ? 1.5 : 1,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _arrivalTimes.map((time) {
+        final isSelected = _draft.arrivalTime == time;
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _draft = _draft.copyWith(arrivalTime: time);
+            });
+          },
+          child: Container(
+            width: 75,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppColors.blue : AppColors.border,
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            child: AppText(
+              time,
+              fontSize: 11,
+              color: isSelected ? AppColors.blue : AppColors.text,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
             ),
           ),
-          child: AppText(
-            t,
-            fontSize: 11,
-            color: selectedTime == t ? AppColors.Primary : Colors.grey.shade800,
-            fontWeight: selectedTime == t ? FontWeight.bold : FontWeight.w500,
-          ),
-        ),
-      )).toList(),
+        );
+      }).toList(),
     );
   }
 
   Widget _buildDurationSelector() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildChip("1h", selectedDuration == '1h'),
-        _buildChip("2h", selectedDuration == '2h'),
-        _buildChip("4h", selectedDuration == '4h'),
-        _buildChip("6h", selectedDuration == '6h'),
-        _buildChip("8h", selectedDuration == '8h'),
-        _buildChip("All\nday", selectedDuration == 'All day', isTwoLines: true),
-      ],
-    );
-  }
-
-  Widget _buildChip(String text, bool isSelected, {bool isTwoLines = false, bool isWide = false}) {
-    return GestureDetector(
-      onTap: () {
-        if(text == "1h" || text == "2h" || text == "4h" || text == "6h" || text == "8h" || text.startsWith("All")) {
-           setState(() {
-              selectedDuration = text.replaceAll('\n', ' ');
-           });
-        }
-      },
-      child: Container(
-        alignment: Alignment.center,
-        padding: EdgeInsets.symmetric(horizontal: isWide ? 10 : (isTwoLines ? 10 : 12), vertical: isTwoLines ? 4 : 8),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isSelected ? AppColors.Green : Colors.grey.shade200,
-            width: isSelected ? 1.5 : 1,
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: _durations.map((duration) {
+        final isSelected = _draft.durationHours == duration;
+        final label = duration == 12 ? 'All day' : '${duration}h';
+        return GestureDetector(
+          onTap: () {
+            setState(() {
+              _draft = _draft.copyWith(durationHours: duration);
+            });
+          },
+          child: Container(
+            width: 51,
+            alignment: Alignment.center,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isSelected ? AppColors.green : AppColors.border,
+                width: isSelected ? 1.5 : 1,
+              ),
+            ),
+            child: AppText(
+              label,
+              fontSize: label == 'All day' ? 10 : 11,
+              color: isSelected ? AppColors.green : AppColors.text,
+              fontWeight: isSelected ? FontWeight.w900 : FontWeight.w700,
+              textAlign: TextAlign.center,
+            ),
           ),
-        ),
-        child: AppText(
-          text,
-          fontSize: 11,
-          color: isSelected ? AppColors.Green : Colors.grey.shade800,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-          textAlign: TextAlign.center,
-        ),
-      ),
+        );
+      }).toList(),
     );
   }
 
@@ -508,23 +506,36 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Column(
       children: [
         _buildSwitchRow(
-          "Book for another person",
-          "Enter the license plate of the vehicle to park.",
-          bookForAnother,
-          (val) => setState(() => bookForAnother = val),
+          'Book for another person',
+          'Enter the license plate of the vehicle to park.',
+          _draft.bookForAnotherPerson,
+          (value) {
+            setState(() {
+              _draft = _draft.copyWith(bookForAnotherPerson: value);
+            });
+          },
         ),
         const SizedBox(height: 16),
         _buildSwitchRow(
-          "Insurance · RD\$25",
-          "Protected with Insurances Bookingtions · Covers up to RD\$3,000 in damages to your vehicle during your reservation time.",
-          insuranceActive,
-          (val) => setState(() => insuranceActive = val),
+          'Insurance - RD\$25',
+          'Protects up to RD\$3,000 in vehicle damages during the reservation.',
+          _draft.insuranceEnabled,
+          (value) {
+            setState(() {
+              _draft = _draft.copyWith(insuranceEnabled: value);
+            });
+          },
         ),
       ],
     );
   }
 
-  Widget _buildSwitchRow(String title, String subtitle, bool value, Function(bool) onChanged) {
+  Widget _buildSwitchRow(
+    String title,
+    String subtitle,
+    bool value,
+    ValueChanged<bool> onChanged,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -532,9 +543,9 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              AppText(title, fontSize: 13, fontWeight: FontWeight.bold),
+              AppText(title, fontSize: 13, fontWeight: FontWeight.w900),
               const SizedBox(height: 4),
-              AppText(subtitle, fontSize: 11, color: Colors.grey.shade600),
+              AppText(subtitle, fontSize: 11, color: AppColors.textSub),
             ],
           ),
         ),
@@ -548,14 +559,22 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.LightGreen,
-        borderRadius: BorderRadius.circular(8),
+        color: AppColors.greenLt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.greenMid),
       ),
       child: Row(
         children: [
-          const Icon(Icons.shield_outlined, color: AppColors.Green, size: 16),
+          const Icon(Icons.shield_outlined, color: AppColors.green, size: 16),
           const SizedBox(width: 8),
-          AppText("Protection active during your 2h stay", fontSize: 11, color: AppColors.Green, fontWeight: FontWeight.w600),
+          Expanded(
+            child: AppText(
+              'Active protection during your ${_draft.durationHours}h stay',
+              fontSize: 11,
+              color: AppColors.green,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -565,15 +584,40 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppText("Price Summary", fontSize: 14, fontWeight: FontWeight.bold),
+        AppText('Price summary', fontSize: 14, fontWeight: FontWeight.w900),
         const SizedBox(height: 12),
-        _buildPriceRow("RD\$150 x 2 hours", "RD\$300"),
+        _buildPriceRow(
+          'RD\$${_draft.pricePerHour} x ${_draft.durationHours} hours',
+          'RD\$${_draft.subtotal}',
+        ),
+        if (_draft.insuranceEnabled) ...[
+          const SizedBox(height: 8),
+          _buildPriceRow('Insurance', 'RD\$${_draft.insuranceFee}'),
+        ],
         const SizedBox(height: 8),
-        _buildPriceRow("Insurance Bookingtions", "RD\$25"),
+        _buildPriceRow('ITBIS (18%)', 'RD\$${_draft.tax}'),
         const SizedBox(height: 8),
-        _buildPriceRow("ITBIS (18%)", "RD\$54"),
-        const SizedBox(height: 8),
-        _buildPriceRow("Service fee", "RD\$25"),
+        _buildPriceRow('Service fee', 'RD\$${_draft.serviceFee}'),
+        const SizedBox(height: 14),
+        const Divider(height: 1, color: AppColors.border),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            AppText(
+              'Estimated total - ${_draft.durationHours}h',
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: AppColors.green,
+            ),
+            AppText(
+              'RD\$${_draft.total}',
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
+              color: AppColors.green,
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -582,47 +626,202 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        AppText(label, fontSize: 12, color: Colors.grey.shade600),
-        AppText(amount, fontSize: 12, color: Colors.grey.shade800),
+        AppText(label, fontSize: 12, color: AppColors.textSub),
+        AppText(
+          amount,
+          fontSize: 12,
+          color: AppColors.text,
+          fontWeight: FontWeight.w800,
+        ),
       ],
     );
   }
 
   Widget _buildBottomBar() {
-    return Container(
-      padding: EdgeInsets.only(left: 20, right: 20, top: 16, bottom: MediaQuery.of(context).padding.bottom + 16),
-      decoration: const BoxDecoration(
-        color: Color(0xFFF3F8F4), // match bg
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          AppText("RD\$150 / hour", fontSize: 18, fontWeight: FontWeight.bold),
-          GestureDetector(
-            onTap: () => _onBookTap(),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.Primary,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: AppText(
-                "Book",
-                color: Colors.white,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AppText(
+              'RD\$${_draft.pricePerHour}',
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
             ),
-          )
-        ],
+            AppText(
+              '/ hour',
+              fontSize: 12,
+              color: AppColors.textSub,
+              fontWeight: FontWeight.w700,
+            ),
+          ],
+        ),
+        GestureDetector(
+          onTap: _showSecurityReminder,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 34, vertical: 14),
+            decoration: BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: AppText(
+              'Book',
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSecurityReminder() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 44,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.borderMd,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                width: 62,
+                height: 62,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.blueLt,
+                  border: Border.all(color: AppColors.blueMid),
+                ),
+                child: const Icon(
+                  Icons.warning_amber_rounded,
+                  color: AppColors.blue,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppText(
+                'Security reminder',
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Do not leave valuables inside your vehicle. Parkealo is not responsible for losses or damage during the reservation.',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.nunito(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSub,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: _sheetButton(
+                      label: 'Cancel',
+                      onTap: () => Navigator.pop(sheetContext),
+                      isPrimary: false,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _sheetButton(
+                      label: 'Understood',
+                      onTap: () {
+                        Navigator.pop(sheetContext);
+                        Get.toNamed(
+                          AppRoutes.confirmPayScreen,
+                          arguments: _draft.toMap(),
+                        );
+                      },
+                      isPrimary: true,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sheetButton({
+    required String label,
+    required VoidCallback onTap,
+    required bool isPrimary,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: isPrimary ? AppColors.green : Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isPrimary ? AppColors.green : AppColors.borderMd,
+          ),
+        ),
+        child: AppText(
+          label,
+          fontSize: 15,
+          fontWeight: FontWeight.w900,
+          color: isPrimary ? Colors.white : AppColors.text,
+        ),
       ),
+    );
+  }
+
+  Widget _circleTopButton({
+    required VoidCallback onTap,
+    required IconData icon,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.white.withValues(alpha: 0.14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.20)),
+        ),
+        child: Icon(icon, color: Colors.white, size: 18),
+      ),
+    );
+  }
+
+  Widget _sectionLabel(String label) {
+    return AppText(
+      label.toUpperCase(),
+      fontSize: 11,
+      fontWeight: FontWeight.w900,
+      color: AppColors.textSub,
     );
   }
 }
 
 class _AdvancedSwitch extends StatelessWidget {
   final bool value;
-  final Function(bool) onChanged;
+  final ValueChanged<bool> onChanged;
 
   const _AdvancedSwitch({required this.value, required this.onChanged});
 
@@ -632,23 +831,14 @@ class _AdvancedSwitch extends StatelessWidget {
       onTap: () => onChanged(!value),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        curve: Curves.easeInOut,
         width: 50,
         height: 28,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(14),
-          color: value ? AppColors.Primary : Colors.grey.shade300,
-          boxShadow: [
-            BoxShadow(
-              color: value ? AppColors.Primary.withOpacity(0.3) : Colors.black.withOpacity(0.08),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
+          color: value ? AppColors.green : AppColors.borderMd,
         ),
         child: AnimatedAlign(
           duration: const Duration(milliseconds: 250),
-          curve: Curves.easeInOut,
           alignment: value ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.all(3),
@@ -657,12 +847,120 @@ class _AdvancedSwitch extends StatelessWidget {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 1)),
-              ],
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _HeroParkingPin extends StatelessWidget {
+  const _HeroParkingPin();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 88,
+      height: 112,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Icon(
+            Icons.location_on_rounded,
+            size: 108,
+            color: AppColors.blueSky.withValues(alpha: 0.98),
+          ),
+          Positioned(
+            top: 18,
+            child: Text(
+              'P',
+              style: GoogleFonts.nunito(
+                fontSize: 42,
+                height: 1,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const Positioned(
+            bottom: 28,
+            child: Icon(
+              Icons.directions_car_filled_rounded,
+              size: 22,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeroMetaChip extends StatelessWidget {
+  final String label;
+
+  const _HeroMetaChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.nunito(
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+}
+
+class _ServicePill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool muted;
+
+  const _ServicePill({
+    required this.icon,
+    required this.label,
+    this.muted = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final background = muted ? AppColors.surface2 : AppColors.greenLt;
+    final border = muted ? AppColors.border : AppColors.greenMid;
+    final color = muted ? AppColors.textFaint : AppColors.green;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.nunito(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
