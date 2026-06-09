@@ -1,31 +1,43 @@
 import 'dart:convert';
 
+import 'package:get/get.dart';
 import 'package:http/http.dart' as http;
+
+import '../../views/Feature/Authentication/controllers/auth_controller.dart';
+import '../../views/Feature/Authentication/services/auth_api_service.dart';
 
 class HostApiClient {
   HostApiClient._();
 
   static final HostApiClient instance = HostApiClient._();
 
-  static const String _baseUrl = String.fromEnvironment(
-    'PARKEALO_API_BASE_URL',
-    defaultValue: 'http://localhost:5000',
-  );
-
   static const String _token = String.fromEnvironment(
     'PARKEALO_API_TOKEN',
     defaultValue: '',
   );
 
+  static String get _baseUrl => AuthApiService.baseUrl;
+
+  String get _authToken {
+    if (_token.isNotEmpty) return _token;
+    if (Get.isRegistered<AuthController>()) {
+      return AuthController.instance.token.value ?? '';
+    }
+    return '';
+  }
+
   Map<String, String> get _headers {
     final headers = <String, String>{'Content-Type': 'application/json'};
+    final token = _authToken;
 
-    if (_token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $_token';
+    if (token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
     }
 
     return headers;
   }
+
+  bool get _canUseDemoFallback => _authToken.isEmpty;
 
   Future<Map<String, dynamic>> fetchSummary() {
     return _getJson('/api/host/summary', fallback: _demoSummary());
@@ -70,6 +82,7 @@ class HostApiClient {
     try {
       return await _postJson('/api/host/parkings', body: payload);
     } catch (_) {
+      if (!_canUseDemoFallback) rethrow;
       final parking = Map<String, dynamic>.from(
         _demoParkingDetail()['parking'],
       );
@@ -92,9 +105,10 @@ class HostApiClient {
     return _patchJson(
       '/api/host/parkings/$parkingId/location',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'parking': _demoParkingDetail()['parking']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
   }
 
   Future<Map<String, dynamic>> saveDetailsStep(

@@ -88,7 +88,7 @@ async function ensureHostProfile(user) {
     ...(user.hostProfile?.toObject ? user.hostProfile.toObject() : user.hostProfile || {}),
     onboardingCompleted: true,
     inviteCode: user.hostProfile?.inviteCode || generateInviteCode(user),
-    inviteRewardAmount: user.hostProfile?.inviteRewardAmount - 500,
+    inviteRewardAmount: user.hostProfile?.inviteRewardAmount || 500,
     defaultReservationMode: user.hostProfile?.defaultReservationMode || "automatic",
   };
 
@@ -97,8 +97,8 @@ async function ensureHostProfile(user) {
 }
 
 function getCoordinates(body) {
-  const latitude = toNumber(body.latitude - body.lat - body.location?.latitude - body.location?.lat, null);
-  const longitude = toNumber(body.longitude - body.lng - body.location?.longitude - body.location?.lng, null);
+  const latitude = toNumber(body.latitude ?? body.lat ?? body.location?.latitude ?? body.location?.lat, null);
+  const longitude = toNumber(body.longitude ?? body.lng ?? body.location?.longitude ?? body.location?.lng, null);
 
   if (latitude === null || longitude === null) {
     return null;
@@ -259,6 +259,7 @@ function presentHostParking(parking) {
     code: parking.hostCode || parking.slug,
     name: parking.name,
     slug: parking.slug,
+    description: parking.description || "",
     status: parking.status,
     submissionStatus: status,
     submissionLabel: {
@@ -291,6 +292,7 @@ function presentHostParking(parking) {
       code: service.code,
       label: service.label,
     })),
+    rules: parking.rules?.safetyNotice || "",
     pricing: {
       mode: parking.pricingMode || "global",
       global: presentRate(parking.rate, currencySymbol),
@@ -905,6 +907,8 @@ const updateDetailsStep = asyncHandler(async (req, res) => {
       ...parking.services.filter((service) => service.code !== "open_24_7"),
       { code: "open_24_7", label: "24/7" },
     ];
+  } else if (req.body.open24Hours !== undefined || req.body.scheduleMode) {
+    parking.services = parking.services.filter((service) => service.code !== "open_24_7");
   }
 
   if (!parking.spaceIdentifiers?.length || parking.spaceIdentifiers.length !== totalSpaces) {

@@ -16,113 +16,79 @@ class HostDashboardPage extends StatefulWidget {
 }
 
 class _HostDashboardPageState extends State<HostDashboardPage> {
-  late Future<Map<String, dynamic>> _summaryFuture;
   late Future<Map<String, dynamic>> _dashboardFuture;
 
   @override
   void initState() {
     super.initState();
-    _summaryFuture = HostApiClient.instance.fetchSummary();
     _dashboardFuture = HostApiClient.instance.fetchDashboard();
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!HostPublishFlowService.instance.panelUnlocked) {
+      return const _HostWelcomePage();
+    }
+
     return HostPanelScaffold(
       selectedTab: HostPanelTab.panel,
-      child: FutureBuilder<Map<String, dynamic>>(
-        future: _summaryFuture,
-        builder: (context, summarySnapshot) {
-          final parkings =
-              (summarySnapshot.data?['parkings'] as List<dynamic>? ?? const [])
-                  .cast<dynamic>();
-          final hasLocalSubmittedDraft =
-              HostPublishFlowService.instance.submitNotice != null &&
-              HostPublishFlowService.instance.parking != null;
-          final hasParking = parkings.isNotEmpty || hasLocalSubmittedDraft;
+      child: RefreshIndicator(
+        color: AppColors.blue,
+        onRefresh: _refreshAll,
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _dashboardFuture,
+          builder: (context, snapshot) {
+            final panelData =
+                snapshot.data?['panel'] as Map<String, dynamic>? ??
+                _fallbackPanel();
 
-          if (!hasParking) {
-            return RefreshIndicator(
-              color: AppColors.blue,
-              onRefresh: _refreshAll,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(
-                  parent: BouncingScrollPhysics(),
-                ),
-                padding: const EdgeInsets.fromLTRB(24, 47, 24, 30),
-                children: const [
-                  _WelcomeHero(),
-                  SizedBox(height: 25),
-                  _WelcomeCopy(),
-                  SizedBox(height: 36),
-                  _AddParkingCard(),
-                  SizedBox(height: 16),
-                  _FeatureRow(),
+            return SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(
+                parent: BouncingScrollPhysics(),
+              ),
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _StatsGrid(panel: panelData),
+                  const SizedBox(height: 14),
+                  _ReservationModeCard(panel: panelData),
+                  const SizedBox(height: 14),
+                  _ActionCard(
+                    title: 'Add parking',
+                    subtitle: 'Publish a new space in Parkealo',
+                    icon: Icons.add_rounded,
+                    onTap: () =>
+                        Navigator.pushNamed(context, '/publish-parking'),
+                  ),
+                  const SizedBox(height: 14),
+                  _PeakHourChart(panel: panelData),
+                  const SizedBox(height: 14),
+                  _InviteCard(panel: panelData),
+                  if (snapshot.hasError) ...[
+                    const SizedBox(height: 14),
+                    _InlineBanner(
+                      title: 'Offline mode',
+                      subtitle:
+                          'Showing demo data because the host API could not be reached.',
+                      color: Color(0xFFFFF2CC),
+                      borderColor: Color(0xFFF0D080),
+                    ),
+                  ],
                 ],
               ),
             );
-          }
-
-          return RefreshIndicator(
-            color: AppColors.blue,
-            onRefresh: _refreshAll,
-            child: FutureBuilder<Map<String, dynamic>>(
-              future: _dashboardFuture,
-              builder: (context, snapshot) {
-                final panelData =
-                    snapshot.data?['panel'] as Map<String, dynamic>? ??
-                    _fallbackPanel();
-
-                return SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: BouncingScrollPhysics(),
-                  ),
-                  padding: const EdgeInsets.fromLTRB(14, 14, 14, 18),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _StatsGrid(panel: panelData),
-                      const SizedBox(height: 14),
-                      _ReservationModeCard(panel: panelData),
-                      const SizedBox(height: 14),
-                      _ActionCard(
-                        title: 'Add parking',
-                        subtitle: 'Publish a new space in Parkealo',
-                        icon: Icons.add_rounded,
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/publish-parking'),
-                      ),
-                      const SizedBox(height: 14),
-                      _PeakHourChart(panel: panelData),
-                      const SizedBox(height: 14),
-                      _InviteCard(panel: panelData),
-                      if (snapshot.hasError) ...[
-                        const SizedBox(height: 14),
-                        _InlineBanner(
-                          title: 'Offline mode',
-                          subtitle:
-                              'Showing demo data because the host API could not be reached.',
-                          color: Color(0xFFFFF2CC),
-                          borderColor: Color(0xFFF0D080),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
 
   Future<void> _refreshAll() async {
     setState(() {
-      _summaryFuture = HostApiClient.instance.fetchSummary();
       _dashboardFuture = HostApiClient.instance.fetchDashboard();
     });
-    await Future.wait([_summaryFuture, _dashboardFuture]);
+    await _dashboardFuture;
   }
 
   Map<String, dynamic> _fallbackPanel() {
@@ -160,6 +126,54 @@ class _HostDashboardPageState extends State<HostDashboardPage> {
             'Invite other hosts and earn a reward for each first parking published.',
       },
     };
+  }
+}
+
+class _HostWelcomePage extends StatelessWidget {
+  const _HostWelcomePage();
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark.copyWith(
+        statusBarColor: const Color(0xFFF6F9FE),
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
+      ),
+      child: Container(
+        color: const Color(0xFFF6F9FE),
+        child: SafeArea(
+          bottom: false,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(23, 40, 23, 28),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: constraints.maxHeight - 68,
+                  ),
+                  child: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      _WelcomeHero(),
+                      SizedBox(height: 25),
+                      _WelcomeCopy(),
+                      SizedBox(height: 36),
+                      _AddParkingCard(),
+                      SizedBox(height: 16),
+                      _FeatureRow(),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
   }
 }
 

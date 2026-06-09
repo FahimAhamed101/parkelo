@@ -1,185 +1,122 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-import '../services/host_publish_flow_service.dart';
+import '../controllers/publish_parking_details_controller.dart';
 import '../widgets/publish_parking_flow.dart';
 
-class PublishParkingDetailsPage extends StatefulWidget {
+class PublishParkingDetailsPage extends StatelessWidget {
   const PublishParkingDetailsPage({super.key});
 
   @override
-  State<PublishParkingDetailsPage> createState() =>
-      _PublishParkingDetailsPageState();
-}
-
-class _PublishParkingDetailsPageState extends State<PublishParkingDetailsPage> {
-  final _spacesController = TextEditingController(text: '10');
-  final _descriptionController = TextEditingController();
-  final _rulesController = TextEditingController();
-
-  String _parkingType = 'public';
-  int _floors = 1;
-  bool _open24Hours = true;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final parking = HostPublishFlowService.instance.parking ?? const {};
-    final availability = parking['spaces'] as Map<String, dynamic>? ?? const {};
-    _parkingType = (parking['parkingType'] as String? ?? 'public') == 'private'
-        ? 'private'
-        : 'public';
-    _spacesController.text = ((availability['total'] as num?)?.toInt() ?? 10)
-        .toString();
-    _floors = ((availability['floors'] as num?)?.toInt() ?? 1).clamp(1, 30);
-    _descriptionController.text = parking['description'] as String? ?? '';
-    _rulesController.text = parking['rules'] as String? ?? '';
-  }
-
-  @override
-  void dispose() {
-    _spacesController.dispose();
-    _descriptionController.dispose();
-    _rulesController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return PublishFlowScaffold(
-      currentStep: 1,
-      stepTitle: 'Details',
-      showBackAction: true,
-      onContinue: _saving ? () {} : _submit,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const PublishFieldLabel('PARKING TYPE *'),
-            const SizedBox(height: 9),
-            IntrinsicHeight(
-              child: Row(
+    final controller = Get.put(PublishParkingDetailsController());
+
+    return Obx(
+      () => PublishFlowScaffold(
+        currentStep: 1,
+        stepTitle: 'Details',
+        showBackAction: true,
+        onContinue: controller.isSaving.value ? () {} : controller.submit,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(14, 18, 14, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const PublishFieldLabel('PARKING TYPE *'),
+              const SizedBox(height: 9),
+              IntrinsicHeight(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _TypeCard(
+                        icon: Icons.location_city_rounded,
+                        title: 'Public',
+                        subtitle: 'Any user can book',
+                        selected: controller.parkingType.value == 'public',
+                        onTap: () => controller.setParkingType('public'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _TypeCard(
+                        icon: Icons.lock_rounded,
+                        title: 'Private',
+                        subtitle: 'Only approved users',
+                        selected: controller.parkingType.value == 'private',
+                        onTap: () => controller.setParkingType('private'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('NUMBER OF SPACES *'),
+              const SizedBox(height: 8),
+              _NumericField(
+                controller: controller.spacesController,
+                suffix: 'spaces',
+              ),
+              const SizedBox(height: 7),
+              const PublishHintText(
+                'Enter any number: 1, 2, 10, 50, 100... You can configure sections and labels from the dashboard.',
+              ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('LEVELS / FLOORS'),
+              const SizedBox(height: 9),
+              _LevelSelector(
+                floors: controller.floors.value,
+                onChanged: controller.changeFloors,
+              ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('SCHEDULE'),
+              const SizedBox(height: 9),
+              Row(
                 children: [
                   Expanded(
-                    child: _TypeCard(
-                      icon: Icons.location_city_rounded,
-                      title: 'Public',
-                      subtitle: 'Any user can book',
-                      selected: _parkingType == 'public',
-                      onTap: () => setState(() => _parkingType = 'public'),
+                    child: _ScheduleButton(
+                      icon: Icons.schedule_rounded,
+                      label: '24/7',
+                      selected: controller.open24Hours.value,
+                      onTap: () => controller.setOpen24Hours(true),
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 9),
                   Expanded(
-                    child: _TypeCard(
-                      icon: Icons.lock_rounded,
-                      title: 'Private',
-                      subtitle: 'Only approved users',
-                      selected: _parkingType == 'private',
-                      onTap: () => setState(() => _parkingType = 'private'),
+                    child: _ScheduleButton(
+                      icon: Icons.alarm_rounded,
+                      label: 'Specific schedule',
+                      selected: !controller.open24Hours.value,
+                      onTap: () => controller.setOpen24Hours(false),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 18),
-            const PublishFieldLabel('NUMBER OF SPACES *'),
-            const SizedBox(height: 8),
-            _NumericField(controller: _spacesController, suffix: 'spaces'),
-            const SizedBox(height: 7),
-            const PublishHintText(
-              'Enter any number: 1, 2, 10, 50, 100... You can configure sections and labels from the dashboard.',
-            ),
-            const SizedBox(height: 18),
-            const PublishFieldLabel('LEVELS / FLOORS'),
-            const SizedBox(height: 9),
-            _LevelSelector(
-              floors: _floors,
-              onChanged: (value) => setState(() => _floors = value),
-            ),
-            const SizedBox(height: 18),
-            const PublishFieldLabel('SCHEDULE'),
-            const SizedBox(height: 9),
-            Row(
-              children: [
-                Expanded(
-                  child: _ScheduleButton(
-                    icon: Icons.schedule_rounded,
-                    label: '24/7',
-                    selected: _open24Hours,
-                    onTap: () => setState(() => _open24Hours = true),
-                  ),
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: _ScheduleButton(
-                    icon: Icons.alarm_rounded,
-                    label: 'Specific schedule',
-                    selected: !_open24Hours,
-                    onTap: () => setState(() => _open24Hours = false),
-                  ),
-                ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('DESCRIPTION'),
+              const SizedBox(height: 9),
+              _TextAreaField(
+                controller: controller.descriptionController,
+                hint:
+                    'Describe your parking: materials, security, how to find it...',
+              ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('PARKING RULES'),
+              const SizedBox(height: 9),
+              _TextAreaField(
+                controller: controller.rulesController,
+                hint:
+                    'Example: No trucks allowed. Please respect speed signs...',
+              ),
+              if (controller.isSaving.value) ...[
+                const SizedBox(height: 16),
+                const Center(child: CircularProgressIndicator()),
               ],
-            ),
-            const SizedBox(height: 18),
-            const PublishFieldLabel('DESCRIPTION'),
-            const SizedBox(height: 9),
-            _TextAreaField(
-              controller: _descriptionController,
-              hint:
-                  'Describe your parking: materials, security, how to find it...',
-            ),
-            const SizedBox(height: 18),
-            const PublishFieldLabel('PARKING RULES'),
-            const SizedBox(height: 9),
-            _TextAreaField(
-              controller: _rulesController,
-              hint: 'Example: No trucks allowed. Please respect speed signs...',
-            ),
-            if (_saving) ...[
-              const SizedBox(height: 16),
-              const Center(child: CircularProgressIndicator()),
             ],
-          ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _submit() async {
-    final totalSpaces = int.tryParse(_spacesController.text.trim()) ?? 0;
-    if (totalSpaces <= 0) {
-      _showError('Enter a valid number of spaces.');
-      return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      await HostPublishFlowService.instance.saveDetails({
-        'parkingType': _parkingType,
-        'totalSpaces': totalSpaces,
-        'floors': _floors,
-        'scheduleMode': _open24Hours ? '24_7' : 'specific',
-        'open24Hours': _open24Hours,
-        'description': _descriptionController.text.trim(),
-        'rules': _rulesController.text.trim(),
-      });
-
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/publish-parking-spaces');
-    } catch (error) {
-      _showError(error.toString());
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
-  }
-
-  void _showError(String message) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -271,6 +208,11 @@ class _NumericField extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: TextInputType.number,
+        style: const TextStyle(
+          color: PublishFlowColors.ink,
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+        ),
         decoration: InputDecoration(
           prefixIcon: const Padding(
             padding: EdgeInsets.only(left: 12, right: 8),
@@ -321,7 +263,7 @@ class _LevelSelector extends StatelessWidget {
           _CircleButton(
             icon: Icons.remove_rounded,
             filled: true,
-            onTap: () => onChanged(floors > 1 ? floors - 1 : 1),
+            onTap: () => onChanged(floors - 1),
           ),
           const Spacer(),
           Flexible(
@@ -428,6 +370,8 @@ class _ScheduleButton extends StatelessWidget {
             Flexible(
               child: Text(
                 label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: PublishFlowColors.blue,
                   fontSize: 12,

@@ -105,6 +105,7 @@ class PublishParkingSubmittedPage extends StatelessWidget {
   }
 
   void _goToHost(BuildContext context) {
+    HostPublishFlowService.instance.unlockPanel();
     Get.offAll(() => const HostBottomNavScreen(initialIndex: 0));
   }
 }

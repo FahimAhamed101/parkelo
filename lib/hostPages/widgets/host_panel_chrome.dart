@@ -75,7 +75,7 @@ class HostPanelHeader extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Panel Host',
+                          'Host Panel',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.nunito(

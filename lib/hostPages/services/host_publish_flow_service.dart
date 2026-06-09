@@ -9,6 +9,7 @@ class HostPublishFlowService {
   Map<String, dynamic>? parking;
   Map<String, dynamic>? review;
   Map<String, dynamic>? submitNotice;
+  bool panelUnlocked = false;
 
   bool get hasDraft => parkingId != null && parkingId!.isNotEmpty;
 
@@ -17,6 +18,11 @@ class HostPublishFlowService {
     parking = null;
     review = null;
     submitNotice = null;
+    panelUnlocked = false;
+  }
+
+  void unlockPanel() {
+    panelUnlocked = true;
   }
 
   Future<Map<String, dynamic>> createOrUpdateLocation(
