@@ -2,58 +2,141 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 
-const _primaryBlue = Color(0xFF1556B7);
-const _actionBlue = Color(0xFF0A8BFF);
-const _pageBg = Color(0xFFEFF7FF);
-const _ink = Color(0xFF111827);
-const _muted = Color(0xFF6B7280);
-const _green = Color(0xFF16A34A);
-const _softGreen = Color(0xFFECFDF5);
+import '../services/host_api_client.dart';
 
-class IncomeWithdrawalsPage extends StatelessWidget {
+const _green = Color(0xFF0B8F4D);
+const _greenDark = Color(0xFF06733E);
+const _greenSoft = Color(0xFFE9FFF3);
+const _blue = Color(0xFF1F59D1);
+const _blueSoft = Color(0xFFEFF5FF);
+const _gold = Color(0xFF996B00);
+const _goldSoft = Color(0xFFFFF5DB);
+const _red = Color(0xFFC41230);
+const _pageBg = Color(0xFFF1F6FC);
+const _ink = Color(0xFF06143A);
+const _muted = Color(0xFF8090B2);
+const _border = Color(0xFFDDE7F3);
+
+class IncomeWithdrawalsPage extends StatefulWidget {
   const IncomeWithdrawalsPage({super.key});
+
+  @override
+  State<IncomeWithdrawalsPage> createState() => _IncomeWithdrawalsPageState();
+}
+
+class _IncomeWithdrawalsPageState extends State<IncomeWithdrawalsPage> {
+  late Future<Map<String, dynamic>> _incomeFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _incomeFuture = HostApiClient.instance.fetchIncome();
+  }
 
   @override
   Widget build(BuildContext context) {
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light.copyWith(
-        statusBarColor: _primaryBlue,
+        statusBarColor: _greenDark,
         statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: _pageBg,
+        systemNavigationBarColor: Colors.white,
+        systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
         backgroundColor: _pageBg,
-        body: Column(
-          children: [
-            _Header(onBack: () => Navigator.maybePop(context)),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const _SummaryGrid(),
-                    const SizedBox(height: 10),
-                    const _WithdrawalButton(),
-                    const SizedBox(height: 13),
-                    _SectionHeader(
-                      title: 'Withdrawal account',
-                      trailing: _AddAccountButton(
-                        onTap: () => Get.toNamed('/add-withdrawal-account'),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const _EmptyAccountCard(),
-                    const SizedBox(height: 13),
-                    const _SectionHeader(title: 'Recent transactions'),
-                    const SizedBox(height: 8),
-                    const _TransactionsCard(),
-                    const SizedBox(height: 19),
-                    const _InviteHostCard(),
-                  ],
+        bottomNavigationBar: const _HostBottomBar(),
+        body: FutureBuilder<Map<String, dynamic>>(
+          future: _incomeFuture,
+          builder: (context, snapshot) {
+            final income =
+                snapshot.data?['income'] as Map<String, dynamic>? ??
+                _fallbackIncome();
+
+            return RefreshIndicator(
+              color: _green,
+              onRefresh: () async {
+                setState(() {
+                  _incomeFuture = HostApiClient.instance.fetchIncome();
+                });
+                await _incomeFuture;
+              },
+              child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(
+                  parent: BouncingScrollPhysics(),
                 ),
+                slivers: [
+                  const SliverToBoxAdapter(child: _Header()),
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate.fixed([
+                        _SummaryGrid(income: income),
+                        const SizedBox(height: 18),
+                        _WithdrawalButton(income: income),
+                        const SizedBox(height: 18),
+                        _WithdrawalAccountCard(income: income),
+                        const SizedBox(height: 18),
+                        _MovementsCard(income: income),
+                        const SizedBox(height: 16),
+                        _ChartCard(income: income),
+                        const SizedBox(height: 16),
+                        _InviteHostCard(income: income),
+                      ]),
+                    ),
+                  ),
+                ],
               ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _fallbackIncome() {
+    return {
+      'availableForWithdrawalLabel': 'RD\$12,450',
+      'pendingToClearLabel': 'RD\$4,200',
+      'revenueThisMonthLabel': 'RD\$28,600',
+      'bookingsThisMonth': 47,
+      'bankAccount': null,
+      'movements': const [],
+      'chart': const [],
+    };
+  }
+}
+
+class _HostBottomBar extends StatelessWidget {
+  const _HostBottomBar();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 66,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(top: BorderSide(color: _border)),
+        ),
+        child: Row(
+          children: const [
+            _BottomItem(icon: Icons.map_outlined, label: 'Explore'),
+            _BottomItem(
+              icon: Icons.calendar_month_outlined,
+              label: 'Bookingtions',
             ),
+            _BottomItem(
+              icon: Icons.favorite_border_rounded,
+              label: 'Favorites',
+            ),
+            _BottomItem(
+              icon: Icons.home_rounded,
+              label: 'Host',
+              selected: true,
+            ),
+            _BottomItem(icon: Icons.person_outline_rounded, label: 'Account'),
+            _BottomItem(icon: Icons.settings_outlined, label: 'Admin'),
           ],
         ),
       ),
@@ -61,55 +144,125 @@ class IncomeWithdrawalsPage extends StatelessWidget {
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header({required this.onBack});
+class _BottomItem extends StatelessWidget {
+  const _BottomItem({
+    required this.icon,
+    required this.label,
+    this.selected = false,
+  });
 
-  final VoidCallback onBack;
+  final IconData icon;
+  final String label;
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 29,
+            height: 29,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: selected ? _blue : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              size: 19,
+              color: selected ? Colors.white : const Color(0xFF5270A9),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: selected ? _blue : const Color(0xFF8BA0C8),
+              fontSize: 8,
+              fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 4),
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            width: selected ? 18 : 0,
+            height: 3,
+            decoration: BoxDecoration(
+              color: selected ? _green : Colors.transparent,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      decoration: const BoxDecoration(
-        color: _primaryBlue,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(22)),
-      ),
+      decoration: const BoxDecoration(color: _greenDark),
       child: SafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(2, 6, 14, 16),
-          child: SizedBox(
-            height: 42,
-            child: Row(
-              children: [
-                IconButton(
-                  onPressed: onBack,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints.tightFor(
-                    width: 42,
-                    height: 42,
+          padding: const EdgeInsets.fromLTRB(26, 20, 20, 18),
+          child: Row(
+            children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(999),
+                onTap: () => Navigator.maybePop(context),
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.18),
+                    shape: BoxShape.circle,
                   ),
-                  icon: const Icon(
+                  child: const Icon(
                     Icons.arrow_back_ios_new_rounded,
                     color: Colors.white,
-                    size: 18,
+                    size: 16,
                   ),
                 ),
-                const SizedBox(width: 4),
-                const Expanded(
-                  child: Text(
-                    'Income and withdrawals',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w900,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Ingresos y retiros',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 19,
+                        height: 1,
+                        fontWeight: FontWeight.w900,
+                      ),
                     ),
-                  ),
+                    SizedBox(height: 5),
+                    Text(
+                      'Parking Colonial Premium',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFFBDEBD0),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -118,41 +271,60 @@ class _Header extends StatelessWidget {
 }
 
 class _SummaryGrid extends StatelessWidget {
-  const _SummaryGrid();
+  const _SummaryGrid({required this.income});
+
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       children: [
         Row(
           children: [
             Expanded(
               child: _SummaryCard(
-                value: 'RD\$12,450',
-                label: 'Available for\nwithdrawal',
+                value:
+                    income['availableForWithdrawalLabel']?.toString() ??
+                    'RD\$0',
+                label: 'Available para retirar',
+                color: _green,
+                background: _greenSoft,
+                borderColor: _green,
               ),
             ),
-            SizedBox(width: 9),
+            const SizedBox(width: 12),
             Expanded(
               child: _SummaryCard(
-                value: 'RD\$4,200',
-                label: 'Pending settlement',
+                value: income['pendingToClearLabel']?.toString() ?? 'RD\$0',
+                label: 'Pendiente de liquidar',
+                color: _gold,
+                background: _goldSoft,
+                borderColor: _gold,
               ),
             ),
           ],
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
               child: _SummaryCard(
-                value: 'RD\$28,600',
-                label: 'Bookings this month',
+                value: income['revenueThisMonthLabel']?.toString() ?? 'RD\$0',
+                label: 'Retirado este mes',
+                color: _blue,
+                background: _blueSoft,
+                borderColor: _blue,
               ),
             ),
-            SizedBox(width: 9),
+            const SizedBox(width: 12),
             Expanded(
-              child: _SummaryCard(value: '47', label: 'Bookings this month'),
+              child: _SummaryCard(
+                value: '${income['bookingsThisMonth'] ?? 0}',
+                label: 'Bookingiones este mes',
+                color: _blue,
+                background: _blueSoft,
+                borderColor: _border,
+              ),
             ),
           ],
         ),
@@ -162,19 +334,36 @@ class _SummaryGrid extends StatelessWidget {
 }
 
 class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({required this.value, required this.label});
+  const _SummaryCard({
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.background,
+    required this.borderColor,
+  });
 
   final String value;
   final String label;
+  final Color color;
+  final Color background;
+  final Color borderColor;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: const BoxConstraints(minHeight: 58),
-      padding: const EdgeInsets.fromLTRB(10, 8, 9, 8),
+      height: 72,
+      padding: const EdgeInsets.fromLTRB(14, 13, 12, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(9),
+        color: background,
+        borderRadius: BorderRadius.circular(13),
+        border: Border(top: BorderSide(color: borderColor, width: 2)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0B2448),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,22 +373,22 @@ class _SummaryCard extends StatelessWidget {
             value,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _ink,
-              fontSize: 12,
+            style: TextStyle(
+              color: color,
+              fontSize: 20,
+              height: 1,
               fontWeight: FontWeight.w900,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Text(
             label,
-            maxLines: 2,
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: _muted,
-              fontSize: 8.8,
-              height: 1.16,
-              fontWeight: FontWeight.w500,
+            style: TextStyle(
+              color: color,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
@@ -209,70 +398,158 @@ class _SummaryCard extends StatelessWidget {
 }
 
 class _WithdrawalButton extends StatelessWidget {
-  const _WithdrawalButton();
+  const _WithdrawalButton({required this.income});
+
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
+    final amount = income['availableForWithdrawalLabel']?.toString() ?? 'RD\$0';
+
     return SizedBox(
-      height: 31,
+      height: 50,
       child: ElevatedButton(
-        onPressed: () {
-          Get.toNamed('/add-withdrawal-account');
-        },
+        onPressed: () => Get.toNamed('/add-withdrawal-account'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: _actionBlue,
+          backgroundColor: _green,
           foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        ),
-        child: const FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            'Request withdrawal - RD\$12,450',
-            maxLines: 1,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.credit_card_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                'Request retiro - $amount',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.trailing});
+class _WithdrawalAccountCard extends StatelessWidget {
+  const _WithdrawalAccountCard({required this.income});
 
-  final String title;
-  final Widget? trailing;
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 18,
-      child: Row(
+    final account = income['bankAccount'] as Map<String, dynamic>?;
+
+    return _WhiteCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _ink,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Account de retiro',
+                  style: TextStyle(
+                    color: _ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
               ),
-            ),
+              _AddButton(onTap: () => Get.toNamed('/add-withdrawal-account')),
+            ],
           ),
-          ?trailing,
+          const SizedBox(height: 20),
+          Container(
+            constraints: const BoxConstraints(minHeight: 136),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF5F7FB),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: account == null
+                ? const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.account_balance_outlined,
+                        color: Color(0xFF9AA7BA),
+                        size: 36,
+                      ),
+                      SizedBox(height: 12),
+                      Text(
+                        'Sin cuenta de retiro',
+                        style: TextStyle(
+                          color: _ink,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Agrega tu cuenta bancaria para recibir pagos\nde tus parqueos.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.account_balance_rounded,
+                        color: _green,
+                        size: 34,
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        account['bankName']?.toString() ?? 'Banco',
+                        style: const TextStyle(
+                          color: _ink,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        account['accountNumberMasked']?.toString() ?? '',
+                        style: const TextStyle(
+                          color: _muted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _AddAccountButton extends StatelessWidget {
-  const _AddAccountButton({required this.onTap});
+class _AddButton extends StatelessWidget {
+  const _AddButton({required this.onTap});
 
   final VoidCallback onTap;
 
@@ -282,181 +559,120 @@ class _AddAccountButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(999),
       onTap: onTap,
       child: Container(
-        height: 18,
-        padding: const EdgeInsets.symmetric(horizontal: 9),
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: const Color(0xFFF4F8FF),
           borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFFD9EAFE)),
+          border: Border.all(color: const Color(0xFFBFD4F8)),
         ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.add_rounded, color: _actionBlue, size: 11),
-            SizedBox(width: 2),
-            Text(
-              'Add',
-              style: TextStyle(
-                color: _actionBlue,
-                fontSize: 8.4,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
+        alignment: Alignment.center,
+        child: const Text(
+          '+ Agregar',
+          style: TextStyle(
+            color: _blue,
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+          ),
         ),
       ),
     );
   }
 }
 
-class _EmptyAccountCard extends StatelessWidget {
-  const _EmptyAccountCard();
+class _MovementsCard extends StatelessWidget {
+  const _MovementsCard({required this.income});
+
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      foregroundPainter: _DashedRoundedBorderPainter(
-        color: const Color(0xFFD7DFEA),
-        radius: 10,
-      ),
-      child: Container(
-        height: 133,
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 42,
-              height: 42,
-              decoration: const BoxDecoration(
-                color: Color(0xFFF2F4F8),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Icons.account_balance_outlined,
-                color: Color(0xFFAAB4C2),
-                size: 23,
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Text(
-              'No withdrawal account added',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF374151),
-                fontSize: 10.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-            const SizedBox(height: 7),
-            const Text(
-              'Add your bank account to receive\npayments for your parking spaces.',
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                color: Color(0xFF7B8796),
-                fontSize: 8.7,
-                height: 1.28,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+    final movements = (income['movements'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
 
-class _TransactionsCard extends StatelessWidget {
-  const _TransactionsCard();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Column(
+    return _WhiteCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _TransactionRow(
-            title: 'Booking A3 · Carlos M.',
-            time: 'Today 10:30',
-            amount: '+RD\$300',
+          const Text(
+            'Últimos movimientos',
+            style: TextStyle(
+              color: _ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-          SizedBox(height: 14),
-          _TransactionRow(
-            title: 'Booking B1 · María G.',
-            time: 'Today 09:00',
-            amount: '+RD\$150',
-          ),
+          const SizedBox(height: 18),
+          if (movements.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Text(
+                'Todavía no hay movimientos.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: _muted, fontWeight: FontWeight.w700),
+              ),
+            )
+          else
+            for (var i = 0; i < movements.take(5).length; i++) ...[
+              _MovementRow(movement: movements[i]),
+              if (i != movements.take(5).length - 1)
+                const Divider(height: 22, color: _border),
+            ],
         ],
       ),
     );
   }
 }
 
-class _TransactionRow extends StatelessWidget {
-  const _TransactionRow({
-    required this.title,
-    required this.time,
-    required this.amount,
-  });
+class _MovementRow extends StatelessWidget {
+  const _MovementRow({required this.movement});
 
-  final String title;
-  final String time;
-  final String amount;
+  final Map<String, dynamic> movement;
 
   @override
   Widget build(BuildContext context) {
+    final amount = (movement['amount'] as num?) ?? 0;
+    final amountLabel = movement['amountLabel']?.toString() ?? 'RD\$0';
+    final isPositive = amount >= 0 || amountLabel.startsWith('+');
+
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                title,
+                movement['label']?.toString() ?? 'Movimiento',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: _ink,
-                  fontSize: 10.2,
-                  fontWeight: FontWeight.w900,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
               const SizedBox(height: 3),
               Text(
-                time,
+                movement['detail']?.toString() ?? '',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
-                  color: Color(0xFF98A2B3),
-                  fontSize: 8.3,
-                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF9AABD0),
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 12),
         Text(
-          amount,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            color: _green,
-            fontSize: 9.1,
+          amountLabel,
+          style: TextStyle(
+            color: isPositive ? _green : _red,
+            fontSize: 14,
             fontWeight: FontWeight.w900,
           ),
         ),
@@ -465,103 +681,108 @@ class _TransactionRow extends StatelessWidget {
   }
 }
 
-class _InviteHostCard extends StatelessWidget {
-  const _InviteHostCard();
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({required this.income});
+
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 10, 10, 9),
-      decoration: BoxDecoration(
-        color: _softGreen,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFC6F6D5)),
-      ),
+    final chart = (income['chart'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    final bars = chart.isEmpty
+        ? [
+            {'label': '6am', 'bookings': 1},
+            {'label': '9am', 'bookings': 4},
+            {'label': '12pm', 'bookings': 3},
+            {'label': '3pm', 'bookings': 5},
+            {'label': '6pm', 'bookings': 4},
+            {'label': '9pm', 'bookings': 1},
+          ]
+        : chart;
+    final maxValue = bars.fold<int>(1, (max, item) {
+      final value = (item['bookings'] as num?)?.round() ?? 0;
+      return value > max ? value : max;
+    });
+
+    return _WhiteCard(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 33,
-                height: 33,
-                decoration: BoxDecoration(
-                  color: const Color(0xFF22C55E),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.card_giftcard_rounded,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Invite other hosts',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _green,
-                        fontSize: 10.7,
-                        fontWeight: FontWeight.w900,
-                      ),
+          SizedBox(
+            height: 96,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                for (final item in bars)
+                  Expanded(
+                    child: _ChartBar(
+                      label: item['label']?.toString() ?? '',
+                      value: (item['bookings'] as num?)?.round() ?? 0,
+                      maxValue: maxValue,
                     ),
-                    SizedBox(height: 2),
-                    Text(
-                      'Earn RD\$100 for each host that publishes\ntheir first parking with your code',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Color(0xFF5B6B76),
-                        fontSize: 7.9,
-                        height: 1.22,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+                  ),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
-          const _HostCodeBox(),
-          const SizedBox(height: 10),
-          Row(
+          const Row(
             children: [
-              Expanded(
-                child: _ShareButton(
-                  icon: Icons.chat_rounded,
-                  label: 'WhatsApp',
-                  backgroundColor: const Color(0xFF25D366),
-                  onPressed: () {},
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _ShareButton(
-                  icon: Icons.share_rounded,
-                  label: 'Share',
-                  backgroundColor: const Color(0xFF2563EB),
-                  onPressed: () {},
-                ),
-              ),
+              _Legend(color: _green, label: 'Alto'),
+              SizedBox(width: 18),
+              _Legend(color: _blue, label: 'Medio'),
+              SizedBox(width: 18),
+              _Legend(color: Color(0xFFE9EFF8), label: 'Bajo'),
             ],
           ),
-          const SizedBox(height: 8),
-          const Text(
-            '3 hosts referred · RD\$300 earned hasta now',
-            textAlign: TextAlign.center,
+        ],
+      ),
+    );
+  }
+}
+
+class _ChartBar extends StatelessWidget {
+  const _ChartBar({
+    required this.label,
+    required this.value,
+    required this.maxValue,
+  });
+
+  final String label;
+  final int value;
+  final int maxValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final ratio = maxValue == 0 ? 0.0 : value / maxValue;
+    final color = ratio >= 0.75
+        ? _green
+        : ratio >= 0.45
+        ? _blue
+        : const Color(0xFFE9EFF8);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            height: 64 * ratio.clamp(0.14, 1.0),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: Color(0xFF7B8A96),
-              fontSize: 7.4,
-              fontWeight: FontWeight.w500,
+            style: const TextStyle(
+              color: Color(0xFF9AABD0),
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -570,52 +791,177 @@ class _InviteHostCard extends StatelessWidget {
   }
 }
 
-class _HostCodeBox extends StatelessWidget {
-  const _HostCodeBox();
+class _Legend extends StatelessWidget {
+  const _Legend({required this.color, required this.label});
+
+  final Color color;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 5),
+        Text(
+          label,
+          style: const TextStyle(
+            color: Color(0xFF6F7FA0),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InviteHostCard extends StatelessWidget {
+  const _InviteHostCard({required this.income});
+
+  final Map<String, dynamic> income;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 31,
-      padding: const EdgeInsets.fromLTRB(12, 0, 6, 0),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 13),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFD8F3E0)),
+        color: _greenSoft,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF98E3B8)),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Expanded(
-            child: Text(
-              'HOST-JM3K9',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: _primaryBlue,
-                fontSize: 9.6,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ),
-          SizedBox(
-            height: 21,
-            child: ElevatedButton(
-              onPressed: () {},
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-                foregroundColor: Colors.white,
-                elevation: 0,
-                minimumSize: Size.zero,
-                padding: const EdgeInsets.symmetric(horizontal: 13),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: _green,
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard_rounded,
+                  color: Colors.white,
+                  size: 24,
                 ),
               ),
-              child: const Text(
-                'Copy',
-                style: TextStyle(fontSize: 8.3, fontWeight: FontWeight.w900),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Invita a otros hosts',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: _green,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                    SizedBox(height: 3),
+                    Text(
+                      'Gana RD\$100 por cada host que publique su\nprimer parqueo con tu código',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Color(0xFF6580A0),
+                        fontSize: 12,
+                        height: 1.25,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Container(
+            height: 50,
+            padding: const EdgeInsets.fromLTRB(14, 0, 8, 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(9),
+              border: Border.all(color: _blue, style: BorderStyle.solid),
+            ),
+            child: Row(
+              children: [
+                const Expanded(
+                  child: Text(
+                    'HOST-JM3K9',
+                    style: TextStyle(
+                      color: _blue,
+                      fontSize: 15,
+                      letterSpacing: 2,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      const ClipboardData(text: 'HOST-JM3K9'),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _blue,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'Copiar',
+                    style: TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: _ShareButton(
+                  color: const Color(0xFF25D366),
+                  label: 'WhatsApp',
+                  onTap: () {},
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ShareButton(
+                  color: _blue,
+                  label: 'Compartir',
+                  onTap: () {},
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          const Text(
+            '3 hosts referidos - RD\$300 ganados hasta now',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: Color(0xFF7C91A8),
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ],
@@ -626,85 +972,62 @@ class _HostCodeBox extends StatelessWidget {
 
 class _ShareButton extends StatelessWidget {
   const _ShareButton({
-    required this.icon,
+    required this.color,
     required this.label,
-    required this.backgroundColor,
-    required this.onPressed,
+    required this.onTap,
   });
 
-  final IconData icon;
+  final Color color;
   final String label;
-  final Color backgroundColor;
-  final VoidCallback onPressed;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 28,
-      child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, color: Colors.white, size: 12),
-        label: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 8.9,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ),
+      height: 36,
+      child: ElevatedButton(
+        onPressed: onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor,
+          backgroundColor: color,
+          foregroundColor: Colors.white,
           elevation: 0,
           shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w900),
         ),
       ),
     );
   }
 }
 
-class _DashedRoundedBorderPainter extends CustomPainter {
-  const _DashedRoundedBorderPainter({
-    required this.color,
-    required this.radius,
-  });
+class _WhiteCard extends StatelessWidget {
+  const _WhiteCard({required this.child});
 
-  final Color color;
-  final double radius;
+  final Widget child;
 
   @override
-  void paint(Canvas canvas, Size size) {
-    const dashWidth = 3.0;
-    const dashGap = 4.0;
-    final rect = Offset.zero & size;
-    final rrect = RRect.fromRectAndRadius(
-      rect.deflate(0.5),
-      Radius.circular(radius),
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0C0B2448),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: child,
     );
-    final path = Path()..addRRect(rrect);
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-
-    for (final metric in path.computeMetrics()) {
-      var distance = 0.0;
-      while (distance < metric.length) {
-        final next = distance + dashWidth;
-        final end = next > metric.length ? metric.length : next;
-        canvas.drawPath(metric.extractPath(distance, end), paint);
-        distance += dashWidth + dashGap;
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _DashedRoundedBorderPainter oldDelegate) {
-    return color != oldDelegate.color || radius != oldDelegate.radius;
   }
 }

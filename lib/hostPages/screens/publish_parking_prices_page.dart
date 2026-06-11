@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../services/host_publish_flow_service.dart';
 import '../widgets/publish_parking_flow.dart';
-import 'publish_parking_review_page.dart';
 
 class PublishParkingPricesPage extends StatefulWidget {
   const PublishParkingPricesPage({super.key});
@@ -211,10 +210,7 @@ class _PublishParkingPricesPageState extends State<PublishParkingPricesPage> {
       });
 
       if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PublishParkingReviewPage()),
-      );
+      Navigator.pushReplacementNamed(context, '/publish-parking-review');
     } catch (error) {
       ScaffoldMessenger.of(
         context,

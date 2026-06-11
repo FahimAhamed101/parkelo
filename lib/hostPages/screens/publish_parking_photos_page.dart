@@ -1,117 +1,61 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
+import 'package:get/get.dart';
 
-import '../services/host_publish_flow_service.dart';
+import '../controllers/publish_parking_photos_controller.dart';
 import '../widgets/publish_parking_flow.dart';
 
-class PublishParkingPhotosPage extends StatefulWidget {
+class PublishParkingPhotosPage extends StatelessWidget {
   const PublishParkingPhotosPage({super.key});
 
   @override
-  State<PublishParkingPhotosPage> createState() =>
-      _PublishParkingPhotosPageState();
-}
-
-class _PublishParkingPhotosPageState extends State<PublishParkingPhotosPage> {
-  final _picker = ImagePicker();
-  late List<String> _photos;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final parking = HostPublishFlowService.instance.parking ?? const {};
-    final media = parking['media'] as Map<String, dynamic>? ?? const {};
-    final gallery = (media['gallery'] as List<dynamic>? ?? const [])
-        .cast<String>();
-    _photos = List<String>.from(gallery.take(4));
-    while (_photos.length < 4) {
-      _photos.add('');
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return PublishFlowScaffold(
-      currentStep: 4,
-      stepTitle: 'Photos',
-      showBackAction: true,
-      onContinue: _saving ? () {} : _submit,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(21, 21, 21, 24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const PublishFieldLabel('PARKING PHOTOS'),
-            const SizedBox(height: 10),
-            GridView.builder(
-              itemCount: 4,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 10,
-                childAspectRatio: 1.5,
+    final controller = Get.put(PublishParkingPhotosController());
+
+    return Obx(
+      () => PublishFlowScaffold(
+        currentStep: 4,
+        stepTitle: 'Photos',
+        showBackAction: true,
+        onContinue: controller.isSaving.value ? () {} : controller.submit,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(21, 21, 21, 24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const PublishFieldLabel('PARKING PHOTOS'),
+              const SizedBox(height: 10),
+              GridView.builder(
+                itemCount: controller.photos.length,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 12,
+                  crossAxisSpacing: 10,
+                  childAspectRatio: 1.5,
+                ),
+                itemBuilder: (context, index) {
+                  return _PhotoSlot(
+                    path: controller.photos[index],
+                    isCover: index == 0,
+                    onTap: () => controller.pickPhoto(index),
+                  );
+                },
               ),
-              itemBuilder: (context, index) {
-                return _PhotoSlot(
-                  path: _photos[index],
-                  isCover: index == 0,
-                  onTap: () => _pickPhoto(index),
-                );
-              },
-            ),
-            const SizedBox(height: 27),
-            _TipsPanel(),
-            if (_saving) ...[
-              const SizedBox(height: 16),
-              const Center(child: CircularProgressIndicator()),
+              const SizedBox(height: 27),
+              _TipsPanel(),
+              if (controller.isSaving.value) ...[
+                const SizedBox(height: 16),
+                const Center(child: CircularProgressIndicator()),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _pickPhoto(int index) async {
-    final file = await _picker.pickImage(source: ImageSource.gallery);
-    if (file == null) return;
-    setState(() {
-      _photos[index] = file.path;
-    });
-  }
-
-  Future<void> _submit() async {
-    final selectedPhotos = _photos.where((path) => path.isNotEmpty).toList();
-    if (selectedPhotos.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Add at least one photo before continuing.'),
-        ),
-      );
-      return;
-    }
-
-    setState(() => _saving = true);
-    try {
-      await HostPublishFlowService.instance.savePhotos({
-        'photos': selectedPhotos,
-        'mainPhoto': selectedPhotos.first,
-      });
-
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/publish-parking-prices');
-    } catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 }
 
@@ -138,7 +82,7 @@ class _PhotoSlot extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: isCover ? null : Border.all(color: const Color(0xFFDCE5F0)),
           image: hasImage
-              ? DecorationImage(image: FileImage(File(path)), fit: BoxFit.cover)
+              ? DecorationImage(image: _imageProvider(path), fit: BoxFit.cover)
               : null,
         ),
         child: Stack(
@@ -209,6 +153,15 @@ class _PhotoSlot extends StatelessWidget {
       ),
       child: child,
     );
+  }
+
+  ImageProvider _imageProvider(String value) {
+    final uri = Uri.tryParse(value);
+    if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
+      return NetworkImage(value);
+    }
+
+    return FileImage(File(value));
   }
 }
 

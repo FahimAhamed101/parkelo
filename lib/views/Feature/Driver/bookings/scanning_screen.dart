@@ -16,6 +16,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
   late MobileScannerController _controller;
   double _zoomValue = 0.0;
   bool _hasScanned = false;
+  String? _scannedCode;
 
   @override
   void initState() {
@@ -37,7 +38,9 @@ class _ScanningScreenState extends State<ScanningScreen> {
     final List<Barcode> barcodes = capture.barcodes;
     for (final barcode in barcodes) {
       if (barcode.rawValue != null) {
+        final code = barcode.rawValue!;
         setState(() => _hasScanned = true);
+        _scannedCode = code;
         _controller.stop();
 
         // Show success dialog
@@ -54,7 +57,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               ],
             ),
             content: AppText(
-              "Code: ${barcode.rawValue}",
+              "Code: $code",
               fontSize: 14,
               color: Colors.grey.shade700,
             ),
@@ -62,7 +65,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);
-                  Get.back(result: true);
+                  Get.back(result: _scannedCode);
                 },
                 child: AppText("Confirm", fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.Primary),
               ),
@@ -107,7 +110,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               child: AppText(
                 "scan for auto fill your Reservation",
                 fontSize: 13,
-                color: Colors.white.withOpacity(0.8),
+                color: Colors.white.withValues(alpha: 0.8),
               ),
             ),
           ),
@@ -147,7 +150,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
                   child: SliderTheme(
                     data: SliderThemeData(
                       activeTrackColor: AppColors.Primary,
-                      inactiveTrackColor: Colors.white.withOpacity(0.3),
+                      inactiveTrackColor: Colors.white.withValues(alpha: 0.3),
                       thumbColor: AppColors.Primary,
                       trackHeight: 4,
                     ),
@@ -192,7 +195,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               left: 0,
               right: 0,
               height: top,
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
             // Bottom
             Positioned(
@@ -200,7 +203,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               left: 0,
               right: 0,
               bottom: 0,
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
             // Left
             Positioned(
@@ -208,7 +211,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               left: 0,
               width: left,
               height: scanArea,
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
             // Right
             Positioned(
@@ -216,7 +219,7 @@ class _ScanningScreenState extends State<ScanningScreen> {
               right: 0,
               width: left,
               height: scanArea,
-              child: Container(color: Colors.black.withOpacity(0.5)),
+              child: Container(color: Colors.black.withValues(alpha: 0.5)),
             ),
           ],
         );

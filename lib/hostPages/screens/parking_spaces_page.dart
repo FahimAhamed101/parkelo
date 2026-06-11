@@ -1,90 +1,188 @@
 import 'package:flutter/material.dart';
 
+import '../services/host_api_client.dart';
 import '../widgets/host_panel_chrome.dart';
 
 const _primaryBlue = Color(0xFF1556B7);
-const _actionBlue = Color(0xFF0A8BFF);
-const _ink = Color(0xFF111827);
+const _ink = Color(0xFF071633);
 const _muted = Color(0xFF8A96A8);
-const _green = Color(0xFF16A34A);
-const _greenBorder = Color(0xFF86EFAC);
-const _greenBg = Color(0xFFE9FFF4);
-const _red = Color(0xFFEF4444);
-const _redBorder = Color(0xFFFCA5A5);
-const _redBg = Color(0xFFFFEEF0);
+const _green = Color(0xFF009A52);
+const _greenBorder = Color(0xFF83E0B0);
+const _greenBg = Color(0xFFE7FFF3);
+const _red = Color(0xFFE21B3C);
+const _redBorder = Color(0xFFF6A8B5);
+const _redBg = Color(0xFFFFEEF2);
 
-class ParkingSpacesPage extends StatelessWidget {
-  const ParkingSpacesPage({super.key});
+class ParkingSpacesPage extends StatefulWidget {
+  const ParkingSpacesPage({super.key, this.configureAll = false});
 
-  static const _sections = [
-    _ParkingSectionData(
-      title: 'Ground Floor',
-      free: 7,
-      occupied: 3,
-      total: 10,
-      spaces: [
-        _ParkingSpaceData('A1', true),
-        _ParkingSpaceData('A2', false),
-        _ParkingSpaceData('A3', false),
-        _ParkingSpaceData('A4', true),
-        _ParkingSpaceData('A5', false),
-        _ParkingSpaceData('A6', false),
-        _ParkingSpaceData('A7', true),
-        _ParkingSpaceData('A8', false),
-        _ParkingSpaceData('A9', false),
-        _ParkingSpaceData('A10', false),
-      ],
-    ),
-    _ParkingSectionData(
-      title: 'Level 1',
-      free: 6,
-      occupied: 2,
-      total: 8,
-      spaces: [
-        _ParkingSpaceData('B1', false),
-        _ParkingSpaceData('B2', true),
-        _ParkingSpaceData('B3', false),
-        _ParkingSpaceData('B4', false),
-        _ParkingSpaceData('B5', true),
-        _ParkingSpaceData('B6', false),
-        _ParkingSpaceData('B7', false),
-        _ParkingSpaceData('B8', false),
-      ],
-    ),
-  ];
+  final bool configureAll;
+
+  @override
+  State<ParkingSpacesPage> createState() => _ParkingSpacesPageState();
+}
+
+class _ParkingSpacesPageState extends State<ParkingSpacesPage> {
+  _HostParkingData? _parking;
+  String? _configSectionId;
+  bool _loading = true;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final response = await HostApiClient.instance.fetchParkings();
+      final parkings = response['parkings'];
+      final first = parkings is List && parkings.isNotEmpty
+          ? parkings.first
+          : null;
+      if (!mounted) return;
+      setState(() {
+        _parking = first is Map<String, dynamic>
+            ? _HostParkingData.fromApi(first)
+            : null;
+        _configSectionId =
+            widget.configureAll &&
+                _parking != null &&
+                _parking!.sections.isNotEmpty
+            ? _parking!.sections.first.id
+            : null;
+      });
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final parking = _parking;
+    if (parking == null || parking.id.isEmpty) return;
+
+    setState(() => _saving = true);
+    try {
+      final response = await HostApiClient.instance.saveParkingLayout(
+        parking.id,
+        parking.toLayoutPayload(),
+      );
+      final parkingJson = response['parking'];
+      if (parkingJson is Map<String, dynamic> && mounted) {
+        setState(() => _parking = _HostParkingData.fromApi(parkingJson));
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Future<void> _toggleSpace(String sectionId, String label) async {
+    final parking = _parking;
+    if (parking == null) return;
+
+    setState(() {
+      _parking = parking.toggleSpace(sectionId, label);
+    });
+    await _save();
+  }
+
+  Future<void> _configureSection(
+    String sectionId, {
+    String? prefix,
+    int? count,
+  }) async {
+    final parking = _parking;
+    if (parking == null) return;
+
+    setState(() {
+      _parking = parking.configureSection(
+        sectionId,
+        prefix: prefix,
+        count: count,
+      );
+    });
+    await _save();
+  }
+
+  Future<void> _addSection(_SectionDraft draft) async {
+    final parking = _parking;
+    if (parking == null) return;
+
+    setState(() {
+      _parking = parking.addSection(draft);
+      _configSectionId = _parking!.sections.last.id;
+    });
+    await _save();
+  }
 
   @override
   Widget build(BuildContext context) {
     return HostPanelScaffold(
       selectedTab: HostPanelTab.parking,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(13, 18, 13, 28),
-        child: Column(
-          children: [
-            for (var i = 0; i < _sections.length; i++) ...[
-              _ParkingSectionCard(
-                section: _sections[i],
-                action: _SettingsButton(
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/parking-spaces-config'),
-                ),
+      child: Stack(
+        children: [
+          if (_loading)
+            const Center(child: CircularProgressIndicator())
+          else if (_parking == null)
+            const _EmptyParkingPanel()
+          else
+            RefreshIndicator(
+              onRefresh: _load,
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(12, 18, 12, 92),
+                children: [
+                  for (var i = 0; i < _parking!.sections.length; i++) ...[
+                    _ParkingSectionCard(
+                      section: _parking!.sections[i],
+                      showConfiguration:
+                          _configSectionId == _parking!.sections[i].id,
+                      onConfigTap: () {
+                        setState(() {
+                          final id = _parking!.sections[i].id;
+                          _configSectionId = _configSectionId == id ? null : id;
+                        });
+                      },
+                      onToggleSpace: (label) =>
+                          _toggleSpace(_parking!.sections[i].id, label),
+                      onConfigure: ({prefix, count}) => _configureSection(
+                        _parking!.sections[i].id,
+                        prefix: prefix,
+                        count: count,
+                      ),
+                    ),
+                    const SizedBox(height: 15),
+                  ],
+                  _AddSectionButton(
+                    onTap: () async {
+                      final draft = await showModalBottomSheet<_SectionDraft>(
+                        context: context,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.transparent,
+                        builder: (_) => const _NewSectionSheet(),
+                      );
+                      if (draft != null) await _addSection(draft);
+                    },
+                  ),
+                ],
               ),
-              if (i != _sections.length - 1) const SizedBox(height: 14),
-            ],
-            const SizedBox(height: 14),
-            _AddSectionButton(onTap: () => _showNewSectionSheet(context)),
-          ],
-        ),
+            ),
+          if (_saving)
+            const Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              child: LinearProgressIndicator(minHeight: 2),
+            ),
+        ],
       ),
-    );
-  }
-
-  static void _showNewSectionSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _NewSectionSheet(),
     );
   }
 }
@@ -92,79 +190,41 @@ class ParkingSpacesPage extends StatelessWidget {
 class ParkingSpacesConfigPage extends StatelessWidget {
   const ParkingSpacesConfigPage({super.key});
 
-  static const _sections = ParkingSpacesPage._sections;
-
   @override
   Widget build(BuildContext context) {
-    return HostPanelScaffold(
-      selectedTab: HostPanelTab.parking,
-      child: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(13, 18, 13, 10),
-              child: Column(
-                children: [
-                  for (var i = 0; i < _sections.length; i++) ...[
-                    _ParkingSectionCard(
-                      section: _sections[i],
-                      action: _DoneButton(
-                        onTap: () => Navigator.maybePop(context),
-                      ),
-                      showConfiguration: true,
-                    ),
-                    if (i != _sections.length - 1) const SizedBox(height: 12),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(13, 2, 13, 12),
-            child: _AddSectionButton(
-              onTap: () => _showNewSectionSheet(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static void _showNewSectionSheet(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => const _NewSectionSheet(),
-    );
+    return const ParkingSpacesPage(configureAll: true);
   }
 }
 
 class _ParkingSectionCard extends StatelessWidget {
   const _ParkingSectionCard({
     required this.section,
-    required this.action,
-    this.showConfiguration = false,
+    required this.showConfiguration,
+    required this.onConfigTap,
+    required this.onToggleSpace,
+    required this.onConfigure,
   });
 
   final _ParkingSectionData section;
-  final Widget action;
   final bool showConfiguration;
+  final VoidCallback onConfigTap;
+  final ValueChanged<String> onToggleSpace;
+  final void Function({String? prefix, int? count}) onConfigure;
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.fromLTRB(16, 14, 16, showConfiguration ? 12 : 17),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE1EAF5)),
+        border: Border.all(color: const Color(0xFFDCE7F3)),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0A000000),
-            blurRadius: 12,
-            offset: Offset(0, 3),
+            color: Color(0x0F0B2448),
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -175,31 +235,76 @@ class _ParkingSectionCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  section.title,
+                  section.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     color: _ink,
-                    fontSize: 15,
+                    fontSize: 15.5,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              action,
+              _SectionActionButton(
+                configured: showConfiguration,
+                onTap: onConfigTap,
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 5),
           _SectionStats(section: section),
           if (showConfiguration) ...[
-            const SizedBox(height: 12),
-            const _ConfigurePanel(),
+            const SizedBox(height: 16),
+            _ConfigurePanel(section: section, onConfigure: onConfigure),
           ],
           const SizedBox(height: 15),
-          _SpacesWrap(spaces: section.spaces),
-          const SizedBox(height: 14),
+          _SpacesWrap(spaces: section.spaces, onTap: onToggleSpace),
+          const SizedBox(height: 13),
           const _SpaceLegend(),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionActionButton extends StatelessWidget {
+  const _SectionActionButton({required this.configured, required this.onTap});
+
+  final bool configured;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: onTap,
+      child: Container(
+        height: configured ? 29 : 27,
+        padding: EdgeInsets.symmetric(horizontal: configured ? 14 : 12),
+        decoration: BoxDecoration(
+          color: configured ? Colors.white : const Color(0xFFF0F4F9),
+          borderRadius: BorderRadius.circular(999),
+          border: configured ? Border.all(color: _primaryBlue) : null,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              configured ? Icons.check_rounded : Icons.settings_outlined,
+              color: configured ? _primaryBlue : const Color(0xFF4D6484),
+              size: configured ? 14 : 12,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              configured ? 'Listo' : 'Config',
+              style: TextStyle(
+                color: configured ? _primaryBlue : const Color(0xFF4D6484),
+                fontSize: configured ? 11 : 10.5,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -216,27 +321,27 @@ class _SectionStats extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       text: TextSpan(
-        style: const TextStyle(fontSize: 8.8, fontWeight: FontWeight.w600),
+        style: const TextStyle(fontSize: 10.5, fontWeight: FontWeight.w800),
         children: [
           TextSpan(
-            text: '${section.free} free',
+            text: '${section.free} libres',
             style: const TextStyle(color: _green),
           ),
           const TextSpan(
-            text: '  \u2022  ',
-            style: TextStyle(color: Color(0xFFB4C0CE)),
+            text: ' · ',
+            style: TextStyle(color: _muted),
           ),
           TextSpan(
-            text: '${section.occupied} occupied',
+            text: '${section.occupied} ocupados',
             style: const TextStyle(color: _red),
           ),
           const TextSpan(
-            text: '  \u2022  ',
-            style: TextStyle(color: Color(0xFFB4C0CE)),
+            text: ' · ',
+            style: TextStyle(color: _muted),
           ),
           TextSpan(
             text: '${section.total} total',
-            style: const TextStyle(color: Color(0xFFB4C0CE)),
+            style: const TextStyle(color: _muted),
           ),
         ],
       ),
@@ -244,193 +349,167 @@ class _SectionStats extends StatelessWidget {
   }
 }
 
-class _SettingsButton extends StatelessWidget {
-  const _SettingsButton({required this.onTap});
+class _ConfigurePanel extends StatefulWidget {
+  const _ConfigurePanel({required this.section, required this.onConfigure});
 
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        height: 27,
-        padding: const EdgeInsets.symmetric(horizontal: 11),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F3F6),
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.settings_outlined, color: Color(0xFF4B5563), size: 12),
-            SizedBox(width: 4),
-            Text(
-              'Config',
-              style: TextStyle(
-                color: Color(0xFF4B5563),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DoneButton extends StatelessWidget {
-  const _DoneButton({required this.onTap});
-
-  final VoidCallback onTap;
+  final _ParkingSectionData section;
+  final void Function({String? prefix, int? count}) onConfigure;
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(999),
-      onTap: onTap,
-      child: Container(
-        height: 22,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: _primaryBlue),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.check_rounded, color: _primaryBlue, size: 11),
-            SizedBox(width: 3),
-            Text(
-              'Done',
-              style: TextStyle(
-                color: _primaryBlue,
-                fontSize: 8.5,
-                fontWeight: FontWeight.w900,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  State<_ConfigurePanel> createState() => _ConfigurePanelState();
 }
 
-class _ConfigurePanel extends StatelessWidget {
-  const _ConfigurePanel();
+class _ConfigurePanelState extends State<_ConfigurePanel> {
+  late final TextEditingController _prefixController;
+  late int _count;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefixController = TextEditingController(text: widget.section.prefix);
+    _count = widget.section.total;
+  }
+
+  @override
+  void didUpdateWidget(covariant _ConfigurePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.section.id != widget.section.id) {
+      _prefixController.text = widget.section.prefix;
+      _count = widget.section.total;
+    }
+  }
+
+  @override
+  void dispose() {
+    _prefixController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFF3F8FF),
-        borderRadius: BorderRadius.circular(9),
+        color: const Color(0xFFF6FAFF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFBED7FF)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'CONFIGURE SECTION',
+            'CONFIGURAR SECCIÓN',
             style: TextStyle(
               color: _primaryBlue,
-              fontSize: 7.4,
+              fontSize: 11,
               fontWeight: FontWeight.w900,
+              letterSpacing: 0,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 86,
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                      'Space prefix',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 7.4,
+                    const _ConfigLabel('Prefijo de espacios'),
+                    const SizedBox(height: 7),
+                    TextField(
+                      controller: _prefixController,
+                      textAlign: TextAlign.center,
+                      textCapitalization: TextCapitalization.characters,
+                      style: const TextStyle(
+                        color: _primaryBlue,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: Colors.white,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 11,
+                        ),
+                        enabledBorder: _inputBorder(const Color(0xFFD7E4F4)),
+                        focusedBorder: _inputBorder(_primaryBlue),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                      onSubmitted: (value) {
+                        final clean = value.trim().toUpperCase();
+                        if (clean.isNotEmpty) {
+                          widget.onConfigure(prefix: clean);
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '→ Los espacios serán ${_prefixController.text.trim().isEmpty ? widget.section.prefix : _prefixController.text.trim().toUpperCase()}1, ${_prefixController.text.trim().isEmpty ? widget.section.prefix : _prefixController.text.trim().toUpperCase()}2...',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _muted,
+                        fontSize: 10,
+                        height: 1.2,
                         fontWeight: FontWeight.w600,
                       ),
-                    ),
-                    const SizedBox(height: 5),
-                    Container(
-                      height: 28,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(5),
-                        border: Border.all(color: const Color(0xFFDCE7F5)),
-                      ),
-                      child: const Text(
-                        'A',
-                        style: TextStyle(
-                          color: _primaryBlue,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    const Text(
-                      'Spaces will be A1, A2...',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: _muted, fontSize: 6.4),
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 12),
-              Expanded(
+              SizedBox(
+                width: 142,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Number of spaces',
-                      style: TextStyle(
-                        color: _ink,
-                        fontSize: 7.4,
-                        fontWeight: FontWeight.w600,
-                      ),
+                  children: [
+                    const _ConfigLabel('Cantidad de espacios'),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 7,
+                      runSpacing: 7,
+                      children: [
+                        for (final value in const [5, 10, 15, 20, 25, 30])
+                          _NumberChip(
+                            label: '$value',
+                            selected: _count == value,
+                            onTap: () {
+                              setState(() => _count = value);
+                              widget.onConfigure(count: value);
+                            },
+                          ),
+                      ],
                     ),
-                    SizedBox(height: 5),
-                    _NumberChips(),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 9),
+          const SizedBox(height: 12),
           Container(
-            constraints: const BoxConstraints(minHeight: 36),
-            padding: const EdgeInsets.fromLTRB(8, 7, 8, 7),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             decoration: BoxDecoration(
               color: const Color(0xFFEAF4FF),
-              borderRadius: BorderRadius.circular(7),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(
                   Icons.lightbulb_outline_rounded,
-                  color: _primaryBlue,
-                  size: 12,
+                  color: Color(0xFFE0A400),
+                  size: 14,
                 ),
-                SizedBox(width: 5),
+                SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Tap any space on the map below to\nchange its identifier or status.',
+                    'Toca cualquier espacio en el mapa de abajo para cambiar su identificador o estado',
                     style: TextStyle(
-                      color: _muted,
-                      fontSize: 7,
-                      height: 1.2,
-                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF7390B9),
+                      fontSize: 10.2,
+                      height: 1.25,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -441,51 +520,70 @@ class _ConfigurePanel extends StatelessWidget {
       ),
     );
   }
+
+  OutlineInputBorder _inputBorder(Color color) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(8),
+      borderSide: BorderSide(color: color),
+    );
+  }
 }
 
-class _NumberChips extends StatelessWidget {
-  const _NumberChips();
+class _ConfigLabel extends StatelessWidget {
+  const _ConfigLabel(this.text);
+
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    const values = ['5', '10', '15', '20', '25', '30'];
-
-    return Wrap(
-      spacing: 6,
-      runSpacing: 6,
-      children: [
-        for (final value in values)
-          _NumberChip(label: value, isSelected: value == '10'),
-      ],
+    return Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Color(0xFF58709A),
+        fontSize: 10.5,
+        fontWeight: FontWeight.w700,
+      ),
     );
   }
 }
 
 class _NumberChip extends StatelessWidget {
-  const _NumberChip({required this.label, required this.isSelected});
+  const _NumberChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 
   final String label;
-  final bool isSelected;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isSelected ? _actionBlue : Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: isSelected ? _actionBlue : const Color(0xFFDCE7F5),
+    return InkWell(
+      borderRadius: BorderRadius.circular(9),
+      onTap: onTap,
+      child: Container(
+        width: 38,
+        height: 31,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFEAF3FF) : Colors.white,
+          borderRadius: BorderRadius.circular(9),
+          border: Border.all(
+            color: selected ? _primaryBlue : const Color(0xFFD7E4F4),
+            width: selected ? 1.4 : 1,
+          ),
         ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : _ink,
-          fontSize: 8,
-          fontWeight: FontWeight.w800,
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? _primaryBlue : _ink,
+            fontSize: 13,
+            fontWeight: FontWeight.w800,
+          ),
         ),
       ),
     );
@@ -493,16 +591,19 @@ class _NumberChip extends StatelessWidget {
 }
 
 class _SpacesWrap extends StatelessWidget {
-  const _SpacesWrap({required this.spaces});
+  const _SpacesWrap({required this.spaces, required this.onTap});
 
   final List<_ParkingSpaceData> spaces;
+  final ValueChanged<String> onTap;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 8.0;
-        final itemWidth = (constraints.maxWidth - (spacing * 4)) / 5;
+        final itemWidth = ((constraints.maxWidth - spacing * 4) / 5)
+            .clamp(48.0, 64.0)
+            .toDouble();
 
         return Wrap(
           spacing: spacing,
@@ -511,8 +612,8 @@ class _SpacesWrap extends StatelessWidget {
             for (final space in spaces)
               SizedBox(
                 width: itemWidth,
-                height: 44,
-                child: _SpaceTile(space: space),
+                height: space.compact ? 48 : 57,
+                child: _SpaceTile(space: space, onTap: () => onTap(space.id)),
               ),
           ],
         );
@@ -522,45 +623,62 @@ class _SpacesWrap extends StatelessWidget {
 }
 
 class _SpaceTile extends StatelessWidget {
-  const _SpaceTile({required this.space});
+  const _SpaceTile({required this.space, required this.onTap});
 
   final _ParkingSpaceData space;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final color = space.isOccupied ? _red : _green;
+    final color = space.occupied ? _red : _green;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: space.isOccupied ? _redBg : _greenBg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: space.isOccupied ? _redBorder : _greenBorder,
-          width: 1.2,
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: space.occupied ? _redBg : _greenBg,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: space.occupied ? _redBorder : _greenBorder,
+            width: 1.2,
+          ),
         ),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            space.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              space.label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: space.compact ? 12 : 13,
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Icon(
-            space.isOccupied
-                ? Icons.directions_car_filled_rounded
-                : Icons.check_rounded,
-            color: color,
-            size: space.isOccupied ? 12 : 14,
-          ),
-        ],
+            const SizedBox(height: 5),
+            if (space.compact)
+              Icon(
+                space.occupied
+                    ? Icons.directions_car_filled_rounded
+                    : Icons.check_rounded,
+                color: color,
+                size: space.occupied ? 12 : 14,
+              )
+            else
+              Text(
+                space.occupied ? 'Occupied' : 'Libre',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 8.4,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -574,11 +692,11 @@ class _SpaceLegend extends StatelessWidget {
     return Row(
       children: [
         const _LegendItem(
-          label: 'Free',
+          label: 'Libre',
           borderColor: _greenBorder,
           fillColor: Color(0xFFF4FFF9),
         ),
-        const SizedBox(width: 10),
+        const SizedBox(width: 12),
         const _LegendItem(
           label: 'Occupied',
           borderColor: _redBorder,
@@ -586,12 +704,12 @@ class _SpaceLegend extends StatelessWidget {
         ),
         const Spacer(),
         Text(
-          'Tap to change status',
+          'Toca para cambiar estado',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            color: _actionBlue.withAlpha(125),
-            fontSize: 7.2,
+            color: _primaryBlue.withValues(alpha: 0.36),
+            fontSize: 9,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -629,9 +747,9 @@ class _LegendItem extends StatelessWidget {
         Text(
           label,
           style: const TextStyle(
-            color: _muted,
-            fontSize: 7.5,
-            fontWeight: FontWeight.w500,
+            color: _primaryBlue,
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
           ),
         ),
       ],
@@ -647,27 +765,24 @@ class _AddSectionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(13),
       onTap: onTap,
       child: Container(
-        height: 43,
+        height: 46,
         width: double.infinity,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.35),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: const Color(0xFFDDE7F3),
-            style: BorderStyle.solid,
-          ),
+          color: Colors.white.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: const Color(0xFFDDE7F3)),
         ),
         child: const Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.add_rounded, color: _primaryBlue, size: 18),
+            Icon(Icons.add_rounded, color: _primaryBlue, size: 19),
             SizedBox(width: 8),
             Text(
-              'Add parking section',
+              'Agregar sección de parqueo',
               style: TextStyle(
                 color: _primaryBlue,
                 fontSize: 13,
@@ -681,18 +796,34 @@ class _AddSectionButton extends StatelessWidget {
   }
 }
 
-class _NewSectionSheet extends StatelessWidget {
+class _NewSectionSheet extends StatefulWidget {
   const _NewSectionSheet();
+
+  @override
+  State<_NewSectionSheet> createState() => _NewSectionSheetState();
+}
+
+class _NewSectionSheetState extends State<_NewSectionSheet> {
+  final _nameController = TextEditingController(text: 'Nueva sección');
+  final _prefixController = TextEditingController(text: 'C');
+  int _count = 10;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _prefixController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Container(
-        padding: const EdgeInsets.fromLTRB(7, 10, 7, 10),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
         decoration: const BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: SafeArea(
           top: false,
@@ -701,60 +832,58 @@ class _NewSectionSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
-                'New parking section',
+                'Nueva sección de parqueo',
                 style: TextStyle(
-                  color: _primaryBlue,
-                  fontSize: 11.5,
+                  color: _ink,
+                  fontSize: 17,
                   fontWeight: FontWeight.w900,
                 ),
               ),
               const SizedBox(height: 14),
-              const _SheetLabel('Section name'),
-              const SizedBox(height: 5),
-              const _SheetInput(hint: 'e.g. Ground Floor, VIP, Roof'),
+              _SheetInput(label: 'Nombre', controller: _nameController),
               const SizedBox(height: 10),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              _SheetInput(label: 'Prefijo', controller: _prefixController),
+              const SizedBox(height: 12),
+              const _ConfigLabel('Cantidad de espacios'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
                 children: [
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _SheetLabel('Prefix (letters/numbers)'),
-                        SizedBox(height: 5),
-                        _SheetInput(hint: 'A, VIP, T1...'),
-                      ],
+                  for (final value in const [5, 10, 15, 20])
+                    _NumberChip(
+                      label: '$value',
+                      selected: _count == value,
+                      onTap: () => setState(() => _count = value),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        _SheetLabel('Quantity'),
-                        SizedBox(height: 5),
-                        _SheetQuantityChips(),
-                      ],
-                    ),
-                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 18),
               Row(
                 children: [
                   Expanded(
-                    child: _SheetButton(
-                      label: 'Cancel',
-                      isPrimary: false,
-                      onTap: () => Navigator.pop(context),
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancelar'),
                     ),
                   ),
-                  const SizedBox(width: 7),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: _SheetButton(
-                      label: 'Create section',
-                      isPrimary: true,
-                      onTap: () => Navigator.pop(context),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(
+                          context,
+                          _SectionDraft(
+                            name: _nameController.text.trim().isEmpty
+                                ? 'Nueva sección'
+                                : _nameController.text.trim(),
+                            prefix: _prefixController.text.trim().isEmpty
+                                ? 'C'
+                                : _prefixController.text.trim().toUpperCase(),
+                            count: _count,
+                          ),
+                        );
+                      },
+                      child: const Text('Crear'),
                     ),
                   ),
                 ],
@@ -767,171 +896,335 @@ class _NewSectionSheet extends StatelessWidget {
   }
 }
 
-class _SheetLabel extends StatelessWidget {
-  const _SheetLabel(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: const TextStyle(
-        color: Color(0xFF6B7280),
-        fontSize: 7.3,
-        fontWeight: FontWeight.w700,
-      ),
-    );
-  }
-}
-
 class _SheetInput extends StatelessWidget {
-  const _SheetInput({required this.hint});
+  const _SheetInput({required this.label, required this.controller});
 
-  final String hint;
+  final String label;
+  final TextEditingController controller;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: TextField(
-        style: const TextStyle(color: _ink, fontSize: 9),
-        decoration: InputDecoration(
-          hintText: hint,
-          hintStyle: const TextStyle(
-            color: Color(0xFFB4BFCD),
-            fontSize: 8.7,
-            fontWeight: FontWeight.w500,
-          ),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 10),
-          filled: true,
-          fillColor: Colors.white,
-          enabledBorder: _sheetInputBorder(const Color(0xFFDDE7F3)),
-          focusedBorder: _sheetInputBorder(_primaryBlue),
-        ),
+    return TextField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
       ),
-    );
-  }
-
-  static OutlineInputBorder _sheetInputBorder(Color color) {
-    return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(5),
-      borderSide: BorderSide(color: color),
     );
   }
 }
 
-class _SheetQuantityChips extends StatelessWidget {
-  const _SheetQuantityChips();
+class _EmptyParkingPanel extends StatelessWidget {
+  const _EmptyParkingPanel();
 
   @override
   Widget build(BuildContext context) {
-    const values = ['5', '10', '15', '20'];
-
-    return Row(
-      children: [
-        for (var i = 0; i < values.length; i++) ...[
-          _SheetQuantityChip(label: values[i], isSelected: values[i] == '10'),
-          if (i != values.length - 1) const SizedBox(width: 4),
-        ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 70, 20, 20),
+      children: const [
+        Icon(Icons.local_parking_rounded, color: _primaryBlue, size: 46),
+        SizedBox(height: 14),
+        Text(
+          'No parking published yet',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: _ink,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        SizedBox(height: 6),
+        Text(
+          'Publish your first parking to manage sections and spaces here.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: _muted, fontSize: 13),
+        ),
       ],
     );
   }
 }
 
-class _SheetQuantityChip extends StatelessWidget {
-  const _SheetQuantityChip({required this.label, required this.isSelected});
-
-  final String label;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 24,
-      height: 24,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: isSelected ? _actionBlue : Colors.white,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: isSelected ? _actionBlue : const Color(0xFFDDE7F3),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: isSelected ? Colors.white : _ink,
-          fontSize: 7.8,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _SheetButton extends StatelessWidget {
-  const _SheetButton({
-    required this.label,
-    required this.isPrimary,
-    required this.onTap,
+class _HostParkingData {
+  const _HostParkingData({
+    required this.id,
+    required this.name,
+    required this.sections,
   });
 
-  final String label;
-  final bool isPrimary;
-  final VoidCallback onTap;
+  final String id;
+  final String name;
+  final List<_ParkingSectionData> sections;
 
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 30,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          elevation: 0,
-          shadowColor: Colors.transparent,
-          backgroundColor: isPrimary ? _actionBlue : Colors.white,
-          foregroundColor: isPrimary ? Colors.white : _actionBlue,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(6),
-            side: const BorderSide(color: _actionBlue),
-          ),
+  factory _HostParkingData.fromApi(Map<String, dynamic> json) {
+    final layout = json['layout'] as Map<String, dynamic>? ?? const {};
+    final layoutSections = layout['sections'];
+    final pricing = json['pricing'] as Map<String, dynamic>? ?? const {};
+    final pricingSections = pricing['sections'];
+    final spaces = json['spaces'] as Map<String, dynamic>? ?? const {};
+    final identifiers = spaces['identifiers'];
+    final occupiedSpaces =
+        (layout['occupiedSpaces'] as List<dynamic>? ?? const [])
+            .map((item) => item.toString())
+            .toSet();
+
+    List<_ParkingSectionData> sections;
+    if (layoutSections is List && layoutSections.isNotEmpty) {
+      sections = layoutSections
+          .whereType<Map<String, dynamic>>()
+          .map(_ParkingSectionData.fromLayout)
+          .toList();
+    } else if (pricingSections is List && pricingSections.isNotEmpty) {
+      sections = pricingSections
+          .whereType<Map<String, dynamic>>()
+          .map(
+            (section) =>
+                _ParkingSectionData.fromPricing(section, occupiedSpaces),
+          )
+          .toList();
+    } else {
+      final labels = identifiers is List
+          ? identifiers.map((item) => item.toString()).toList()
+          : List<String>.generate(
+              (spaces['total'] as num?)?.round() ?? 10,
+              (index) => 'A${index + 1}',
+            );
+      sections = [
+        _ParkingSectionData.fromLabels(
+          id: 'A',
+          name: 'Planta Baja',
+          prefix: 'A',
+          labels: labels,
+          occupiedSpaces: occupiedSpaces,
         ),
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Text(
-            label,
-            maxLines: 1,
-            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w900),
-          ),
-        ),
-      ),
+      ];
+    }
+
+    return _HostParkingData(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Parking',
+      sections: sections,
     );
+  }
+
+  _HostParkingData toggleSpace(String sectionId, String label) {
+    return _HostParkingData(
+      id: id,
+      name: name,
+      sections: sections
+          .map(
+            (section) =>
+                section.id == sectionId ? section.toggle(label) : section,
+          )
+          .toList(),
+    );
+  }
+
+  _HostParkingData configureSection(
+    String sectionId, {
+    String? prefix,
+    int? count,
+  }) {
+    return _HostParkingData(
+      id: id,
+      name: name,
+      sections: sections
+          .map(
+            (section) => section.id == sectionId
+                ? section.configure(prefix: prefix, count: count)
+                : section,
+          )
+          .toList(),
+    );
+  }
+
+  _HostParkingData addSection(_SectionDraft draft) {
+    final section = _ParkingSectionData.fromLabels(
+      id: '${draft.prefix}-${DateTime.now().millisecondsSinceEpoch}',
+      name: draft.name,
+      prefix: draft.prefix,
+      labels: List<String>.generate(
+        draft.count,
+        (index) => '${draft.prefix}${index + 1}',
+      ),
+      occupiedSpaces: const {},
+    );
+    return _HostParkingData(
+      id: id,
+      name: name,
+      sections: [...sections, section],
+    );
+  }
+
+  Map<String, dynamic> toLayoutPayload() {
+    return {
+      'sections': sections.map((section) => section.toPayload()).toList(),
+      'occupiedSpaces': [
+        for (final section in sections)
+          for (final space in section.spaces)
+            if (space.occupied) space.label,
+      ],
+    };
   }
 }
 
 class _ParkingSectionData {
   const _ParkingSectionData({
-    required this.title,
-    required this.free,
-    required this.occupied,
-    required this.total,
+    required this.id,
+    required this.name,
+    required this.prefix,
     required this.spaces,
   });
 
-  final String title;
-  final int free;
-  final int occupied;
-  final int total;
+  final String id;
+  final String name;
+  final String prefix;
   final List<_ParkingSpaceData> spaces;
+
+  int get total => spaces.length;
+  int get occupied => spaces.where((space) => space.occupied).length;
+  int get free => total - occupied;
+
+  factory _ParkingSectionData.fromLayout(Map<String, dynamic> json) {
+    final spaces = (json['spaces'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
+        .map(_ParkingSpaceData.fromApi)
+        .toList();
+    final code = json['code']?.toString() ?? json['prefix']?.toString() ?? 'A';
+    return _ParkingSectionData(
+      id: json['id']?.toString() ?? code,
+      name: json['name']?.toString() ?? 'Section',
+      prefix: json['prefix']?.toString() ?? code,
+      spaces: spaces,
+    );
+  }
+
+  factory _ParkingSectionData.fromPricing(
+    Map<String, dynamic> json,
+    Set<String> occupiedSpaces,
+  ) {
+    final code = json['code']?.toString() ?? 'A';
+    final labels = json['spaces'] is List
+        ? (json['spaces'] as List).map((item) => item.toString()).toList()
+        : const <String>[];
+    return _ParkingSectionData.fromLabels(
+      id: json['id']?.toString() ?? code,
+      name: json['name']?.toString() ?? 'Section',
+      prefix: code,
+      labels: labels,
+      occupiedSpaces: occupiedSpaces,
+    );
+  }
+
+  factory _ParkingSectionData.fromLabels({
+    required String id,
+    required String name,
+    required String prefix,
+    required List<String> labels,
+    required Set<String> occupiedSpaces,
+  }) {
+    return _ParkingSectionData(
+      id: id,
+      name: name,
+      prefix: prefix,
+      spaces: labels
+          .map(
+            (label) => _ParkingSpaceData(
+              id: label,
+              label: label,
+              occupied: occupiedSpaces.contains(label),
+              compact: false,
+            ),
+          )
+          .toList(),
+    );
+  }
+
+  _ParkingSectionData toggle(String label) {
+    return _ParkingSectionData(
+      id: id,
+      name: name,
+      prefix: prefix,
+      spaces: spaces
+          .map((space) => space.id == label ? space.toggle() : space)
+          .toList(),
+    );
+  }
+
+  _ParkingSectionData configure({String? prefix, int? count}) {
+    final nextPrefix = prefix?.trim().toUpperCase();
+    final cleanPrefix = nextPrefix == null || nextPrefix.isEmpty
+        ? this.prefix
+        : nextPrefix;
+    final nextCount = count ?? total;
+    final existingOccupied = {
+      for (final space in spaces)
+        if (space.occupied) space.label,
+    };
+
+    return _ParkingSectionData.fromLabels(
+      id: id,
+      name: name,
+      prefix: cleanPrefix,
+      labels: List<String>.generate(
+        nextCount,
+        (index) => '$cleanPrefix${index + 1}',
+      ),
+      occupiedSpaces: existingOccupied,
+    );
+  }
+
+  Map<String, dynamic> toPayload() {
+    return {
+      'id': id,
+      'code': prefix,
+      'prefix': prefix,
+      'name': name,
+      'spaces': spaces.map((space) => space.label).toList(),
+      'count': spaces.length,
+    };
+  }
 }
 
 class _ParkingSpaceData {
-  const _ParkingSpaceData(this.label, this.isOccupied);
+  const _ParkingSpaceData({
+    required this.id,
+    required this.label,
+    required this.occupied,
+    this.compact = false,
+  });
 
+  final String id;
   final String label;
-  final bool isOccupied;
+  final bool occupied;
+  final bool compact;
+
+  factory _ParkingSpaceData.fromApi(Map<String, dynamic> json) {
+    return _ParkingSpaceData(
+      id: json['id']?.toString() ?? json['label']?.toString() ?? '',
+      label: json['label']?.toString() ?? json['id']?.toString() ?? '',
+      occupied: json['occupied'] == true,
+      compact: true,
+    );
+  }
+
+  _ParkingSpaceData toggle() {
+    return _ParkingSpaceData(
+      id: id,
+      label: label,
+      occupied: !occupied,
+      compact: compact,
+    );
+  }
+}
+
+class _SectionDraft {
+  const _SectionDraft({
+    required this.name,
+    required this.prefix,
+    required this.count,
+  });
+
+  final String name;
+  final String prefix;
+  final int count;
 }

@@ -33,11 +33,14 @@ class _LoginScreenState extends State<LoginScreen> {
   bool rememberMe = true;
   bool acceptTerms = false;
 
-  @override
-  void initState() {
-    super.initState();
-    selectedTab = widget.initialTab;
-  }
+@override
+void initState() {
+  super.initState();
+  selectedTab = widget.initialTab;
+
+  loginEmailController.text = 'admin@admin.com';
+  loginPasswordController.text = 'admin1234';
+}
 
   @override
   void dispose() {

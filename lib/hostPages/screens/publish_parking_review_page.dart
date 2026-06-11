@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../services/host_publish_flow_service.dart';
 import '../widgets/publish_parking_flow.dart';
-import 'publish_parking_submitted_page.dart';
 
 class PublishParkingReviewPage extends StatefulWidget {
   const PublishParkingReviewPage({
@@ -82,10 +81,7 @@ class _PublishParkingReviewPageState extends State<PublishParkingReviewPage> {
     try {
       await HostPublishFlowService.instance.submit();
       if (!mounted) return;
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const PublishParkingSubmittedPage()),
-      );
+      Navigator.pushReplacementNamed(context, '/publish-parking-submitted');
     } catch (error) {
       ScaffoldMessenger.of(
         context,

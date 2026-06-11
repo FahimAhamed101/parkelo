@@ -4,6 +4,7 @@ const {
   checkInBooking,
   checkOutBooking,
   createBooking,
+  createPaymentIntent,
   extendBooking,
   getBooking,
   getDirections,
@@ -24,6 +25,7 @@ router.post("/safety-check", safetyCheck);
 router.use(requireAuth);
 
 router.get("/", listBookings);
+router.post("/payment-intent", createPaymentIntent);
 router.post("/", createBooking);
 router.get("/:id", getBooking);
 router.post("/:id/notify-host", notifyHost);

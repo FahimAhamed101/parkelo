@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
 
 import '../controllers/publish_parking_location_controller.dart';
 import '../widgets/publish_parking_flow.dart';
@@ -12,7 +11,10 @@ class PublishParkingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(PublishParkingLocationController());
+    final controller = Get.put(
+      PublishParkingLocationController(),
+      permanent: true,
+    );
 
     return Obx(
       () => PublishFlowScaffold(
@@ -234,7 +236,8 @@ class _InteractiveMap extends StatelessWidget {
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
             ),
-            onTap: (_, point) => controller.placePin(point),
+            onTap: (_, point) =>
+                controller.placePin(point, resolveAddress: true),
           ),
           children: [
             TileLayer(

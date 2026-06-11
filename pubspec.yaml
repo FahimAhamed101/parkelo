@@ -49,6 +49,9 @@ dependencies:
   flutter_map: ^8.3.0
   latlong2: ^0.9.1
   geolocator: ^14.0.2
+  geocoding: ^4.0.0
+  rive: ^0.14.8
+  flutter_stripe: ^13.0.0
 
 dev_dependencies:
   flutter_test:

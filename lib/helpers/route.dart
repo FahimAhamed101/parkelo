@@ -9,6 +9,7 @@ import '../views/Feature/Driver/account/common/privacy_policy_screen.dart';
 import '../views/Feature/Driver/account/common/terms_condition_screen.dart';
 import '../views/Feature/Driver/account/switchToHost/switch_to_host.dart';
 import '../views/Feature/Driver/bookings/bookings_screen.dart';
+import '../views/Feature/Driver/bookings/booking_chat_screen.dart';
 import '../views/Feature/Driver/bookings/scanning_screen.dart';
 import '../views/Feature/Driver/bookings/extend_time_screen.dart';
 import '../views/Feature/Driver/bookings/checkout_screen.dart';
@@ -72,6 +73,7 @@ class AppRoutes {
   static const String confirmPayScreen = "/confirm_pay_screen";
   static const String bookingConfirmedScreen = "/booking_confirmed_screen";
   static const String bookingsScreen = "/bookings_screen";
+  static const String bookingChatScreen = "/booking_chat_screen";
   static const String scanningScreen = "/scanning_screen";
   static const String extendTimeScreen = "/extend_time_screen";
   static const String checkoutScreen = "/checkout_screen";
@@ -121,6 +123,7 @@ class AppRoutes {
       page: () => const BookingConfirmedScreen(),
     ),
     GetPage(name: bookingsScreen, page: () => const BookingsScreen()),
+    GetPage(name: bookingChatScreen, page: () => const BookingChatScreen()),
     GetPage(name: scanningScreen, page: () => const ScanningScreen()),
     GetPage(name: extendTimeScreen, page: () => const ExtendTimeScreen()),
     GetPage(

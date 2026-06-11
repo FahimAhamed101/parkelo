@@ -47,6 +47,10 @@ class HostApiClient {
     return _getJson('/api/host/dashboard', fallback: _demoDashboard());
   }
 
+  Future<Map<String, dynamic>> fetchIncome() {
+    return _getJson('/api/host/income', fallback: _demoIncome());
+  }
+
   Future<Map<String, dynamic>> fetchAlerts() {
     return _getJson('/api/host/alerts', fallback: _demoAlerts());
   }
@@ -118,9 +122,10 @@ class HostApiClient {
     return _patchJson(
       '/api/host/parkings/$parkingId/details',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'parking': _demoParkingDetail()['parking']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
   }
 
   Future<Map<String, dynamic>> saveSpacesStep(
@@ -130,9 +135,23 @@ class HostApiClient {
     return _patchJson(
       '/api/host/parkings/$parkingId/spaces',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'parking': _demoParkingDetail()['parking']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
+  }
+
+  Future<Map<String, dynamic>> saveParkingLayout(
+    String parkingId,
+    Map<String, dynamic> payload,
+  ) async {
+    return _patchJson(
+      '/api/host/parkings/$parkingId/layout',
+      body: payload,
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
   }
 
   Future<Map<String, dynamic>> saveServicesStep(
@@ -142,9 +161,10 @@ class HostApiClient {
     return _patchJson(
       '/api/host/parkings/$parkingId/services',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'parking': _demoParkingDetail()['parking']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
   }
 
   Future<Map<String, dynamic>> savePhotosStep(
@@ -154,9 +174,10 @@ class HostApiClient {
     return _patchJson(
       '/api/host/parkings/$parkingId/photos',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'parking': _demoParkingDetail()['parking']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'parking': _demoParkingDetail()['parking']};
+    });
   }
 
   Future<Map<String, dynamic>> fetchReview(String parkingId) {
@@ -167,9 +188,12 @@ class HostApiClient {
   }
 
   Future<Map<String, dynamic>> submitParking(String parkingId) {
-    return _postJson(
-      '/api/host/parkings/$parkingId/submit',
-    ).catchError((_) => _demoSubmitted());
+    return _postJson('/api/host/parkings/$parkingId/submit').catchError((
+      error,
+    ) {
+      if (!_canUseDemoFallback) throw error;
+      return _demoSubmitted();
+    });
   }
 
   Future<Map<String, dynamic>> savePricing(
@@ -179,9 +203,10 @@ class HostApiClient {
     return _putJson(
       '/api/host/parkings/$parkingId/pricing',
       body: payload,
-    ).catchError(
-      (_) => {'success': true, 'pricing': _demoPricing()['pricing']},
-    );
+    ).catchError((error) {
+      if (!_canUseDemoFallback) throw error;
+      return {'success': true, 'pricing': _demoPricing()['pricing']};
+    });
   }
 
   Future<Map<String, dynamic>> fetchParkingQr(String parkingId) {
@@ -333,6 +358,64 @@ class HostApiClient {
     };
   }
 
+  Map<String, dynamic> _demoIncome() {
+    return {
+      'success': true,
+      'income': {
+        'availableForWithdrawal': 12450,
+        'availableForWithdrawalLabel': 'RD\$12,450',
+        'pendingToClear': 4200,
+        'pendingToClearLabel': 'RD\$4,200',
+        'revenueThisMonth': 28600,
+        'revenueThisMonthLabel': 'RD\$28,600',
+        'withdrawnThisMonth': 0,
+        'withdrawnThisMonthLabel': 'RD\$0',
+        'bookingsThisMonth': 47,
+        'bankAccount': null,
+        'movements': [
+          {
+            'label': 'Booking A3 - Carlos M.',
+            'detail': 'Hoy 10:30',
+            'amountLabel': '+RD\$300',
+            'amount': 300,
+          },
+          {
+            'label': 'Booking B1 - Maria G.',
+            'detail': 'Hoy 09:00',
+            'amountLabel': '+RD\$150',
+            'amount': 150,
+          },
+          {
+            'label': 'Retiro a Banco Popular',
+            'detail': 'Ayer',
+            'amountLabel': '-RD\$5,000',
+            'amount': -5000,
+          },
+          {
+            'label': 'Booking A7 - Juan R.',
+            'detail': 'Hace 2 dias',
+            'amountLabel': '+RD\$450',
+            'amount': 450,
+          },
+          {
+            'label': 'Retiro a Banco Popular',
+            'detail': 'Hace 5 dias',
+            'amountLabel': '-RD\$8,000',
+            'amount': -8000,
+          },
+        ],
+        'chart': [
+          {'label': '6am', 'bookings': 1},
+          {'label': '9am', 'bookings': 4},
+          {'label': '12pm', 'bookings': 3},
+          {'label': '3pm', 'bookings': 5},
+          {'label': '6pm', 'bookings': 4},
+          {'label': '9pm', 'bookings': 1},
+        ],
+      },
+    };
+  }
+
   Map<String, dynamic> _demoAlerts() {
     return {
       'success': true,
@@ -409,6 +492,65 @@ class HostApiClient {
             'available': 8,
             'floors': 2,
             'identifiers': List<String>.generate(12, (index) => '${index + 1}'),
+          },
+          'layout': {
+            'occupiedSpaces': ['A1', 'A4', 'A7', 'B2', 'B5'],
+            'sections': [
+              {
+                'id': 'a',
+                'code': 'A',
+                'name': 'Planta Baja',
+                'prefix': 'A',
+                'free': 7,
+                'occupied': 3,
+                'total': 10,
+                'spaces': [
+                  for (final label in [
+                    'A1',
+                    'A2',
+                    'A3',
+                    'A4',
+                    'A5',
+                    'A6',
+                    'A7',
+                    'A8',
+                    'A9',
+                    'A10',
+                  ])
+                    {
+                      'id': label,
+                      'label': label,
+                      'occupied': ['A1', 'A4', 'A7'].contains(label),
+                    },
+                ],
+              },
+              {
+                'id': 'b',
+                'code': 'B',
+                'name': 'Nivel 1',
+                'prefix': 'B',
+                'free': 6,
+                'occupied': 2,
+                'total': 8,
+                'spaces': [
+                  for (final label in [
+                    'B1',
+                    'B2',
+                    'B3',
+                    'B4',
+                    'B5',
+                    'B6',
+                    'B7',
+                    'B8',
+                  ])
+                    {
+                      'id': label,
+                      'label': label,
+                      'occupied': ['B2', 'B5'].contains(label),
+                    },
+                ],
+              },
+            ],
           },
         },
       ],

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../utils/appColor/app_colors.dart';
+import '../services/host_api_client.dart';
 
 enum HostPanelTab { panel, parking, services, prices, alerts }
 
@@ -68,14 +70,17 @@ class HostPanelHeader extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(14, 14, 12, 11),
               child: Row(
                 children: [
-                  const _HostLogo(),
+                  GestureDetector(
+                    onTap: () => _showHostQrModal(context),
+                    child: const _HostLogo(),
+                  ),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Host Panel',
+                          'Panel Host',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: GoogleFonts.nunito(
@@ -265,6 +270,482 @@ class _HeaderButton extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+Future<Map<String, dynamic>> _loadHostQr() async {
+  final parkings = await HostApiClient.instance.fetchParkings();
+  final parkingList = parkings['parkings'] as List<dynamic>? ?? const [];
+  final firstParking = parkingList.isNotEmpty
+      ? parkingList.first as Map<String, dynamic>
+      : null;
+  final parkingId = firstParking?['id'] as String? ?? 'demo-parking-1';
+  return HostApiClient.instance.fetchParkingQr(parkingId);
+}
+
+void _showHostQrModal(BuildContext context) {
+  showDialog<void>(
+    context: context,
+    barrierColor: const Color(0xFF07142F).withValues(alpha: 0.72),
+    builder: (_) => const _HostQrDialog(),
+  );
+}
+
+class _HostQrDialog extends StatefulWidget {
+  const _HostQrDialog();
+
+  @override
+  State<_HostQrDialog> createState() => _HostQrDialogState();
+}
+
+class _HostQrDialogState extends State<_HostQrDialog> {
+  late final Future<Map<String, dynamic>> _qrFuture = _loadHostQr();
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 21, vertical: 20),
+      backgroundColor: Colors.transparent,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(22),
+        child: Material(
+          color: Colors.white,
+          child: FutureBuilder<Map<String, dynamic>>(
+            future: _qrFuture,
+            builder: (context, snapshot) {
+              final qr =
+                  snapshot.data?['qr'] as Map<String, dynamic>? ??
+                  {
+                    'payload':
+                        '{"type":"parkealo_host_parking","parkingId":"demo-parking-1"}',
+                    'label': 'Parking Colonial Premium',
+                    'code': 'PKL-COL001',
+                  };
+
+              return SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const _HostQrHeader(),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(24, 24, 24, 22),
+                      child: Column(
+                        children: [
+                          _HostQrCard(qr: qr, loading: snapshot.connectionState == ConnectionState.waiting),
+                          const SizedBox(height: 16),
+                          const _HostQrHowItWorks(),
+                          const SizedBox(height: 18),
+                          _HostQrActions(qr: qr),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HostQrHeader extends StatelessWidget {
+  const _HostQrHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      color: const Color(0xFF1E55BC),
+      child: Row(
+        children: [
+          const _MiniHostLogo(),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Codigo QR del parqueo',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => Navigator.of(context).pop(),
+            child: Container(
+              width: 32,
+              height: 32,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.16),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HostQrCard extends StatelessWidget {
+  const _HostQrCard({required this.qr, required this.loading});
+
+  final Map<String, dynamic> qr;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final payload = qr['payload']?.toString() ?? '';
+    final label = qr['label']?.toString() ?? 'Parking Colonial Premium';
+    final code = qr['code']?.toString() ?? 'PKL-COL001';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(18, 21, 18, 23),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFDDE7F5), width: 1.4),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1D3C68).withValues(alpha: 0.08),
+            blurRadius: 14,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          const _ParkealoWordmark(),
+          const SizedBox(height: 8),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+              color: AppColors.textSub,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 15),
+          _HostQrFrame(payload: payload, loading: loading),
+          const SizedBox(height: 13),
+          Text(
+            code,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+              color: const Color(0xFFB5C2D5),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.1,
+            ),
+          ),
+          const SizedBox(height: 13),
+          Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            decoration: BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              'Check-In / Check-Out',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: GoogleFonts.nunito(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 15),
+          Text(
+            'Escanea con la app Parkealo o tu camara para agor\ncheck-in o check-out en tu reserva.',
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.nunito(
+              color: AppColors.textSub,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HostQrFrame extends StatelessWidget {
+  const _HostQrFrame({required this.payload, required this.loading});
+
+  final String payload;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 160,
+      height: 160,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF101B3D), width: 2),
+      ),
+      child: loading
+          ? const Center(
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            )
+          : QrImageView(
+              data: payload.isEmpty ? 'parkealo-host-parking' : payload,
+              version: QrVersions.auto,
+              padding: EdgeInsets.zero,
+              backgroundColor: Colors.white,
+              eyeStyle: const QrEyeStyle(
+                eyeShape: QrEyeShape.square,
+                color: Color(0xFF101B3D),
+              ),
+              dataModuleStyle: const QrDataModuleStyle(
+                dataModuleShape: QrDataModuleShape.square,
+                color: Color(0xFF101B3D),
+              ),
+            ),
+    );
+  }
+}
+
+class _HostQrHowItWorks extends StatelessWidget {
+  const _HostQrHowItWorks();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(15, 13, 15, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F6FF),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFCFE0F6)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.receipt_long_rounded, color: AppColors.blue, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'Como funciona',
+                style: GoogleFonts.nunito(
+                  color: AppColors.blue,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          _HostQrInstruction('User con reserva -> activa el reloj'),
+          _HostQrInstruction('Sin cuenta -> descarga la app'),
+          _HostQrInstruction('Registrado sin reserva -> explorador'),
+        ],
+      ),
+    );
+  }
+}
+
+class _HostQrInstruction extends StatelessWidget {
+  const _HostQrInstruction(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '- ',
+            style: GoogleFonts.nunito(
+              color: AppColors.textSub,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.nunito(
+                color: AppColors.textSub,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                height: 1.28,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HostQrActions extends StatelessWidget {
+  const _HostQrActions({required this.qr});
+
+  final Map<String, dynamic> qr;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _HostQrActionButton(
+            label: 'Download',
+            icon: Icons.print_rounded,
+            color: AppColors.blue,
+            textColor: Colors.white,
+            onTap: () {
+              Clipboard.setData(ClipboardData(text: qr['payload']?.toString() ?? ''));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('QR payload copied')),
+              );
+            },
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _HostQrActionButton(
+            label: 'Close',
+            color: const Color(0xFFE9EDF5),
+            textColor: AppColors.textSub,
+            onTap: () => Navigator.of(context).pop(),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HostQrActionButton extends StatelessWidget {
+  const _HostQrActionButton({
+    required this.label,
+    required this.color,
+    required this.textColor,
+    required this.onTap,
+    this.icon,
+  });
+
+  final String label;
+  final IconData? icon;
+  final Color color;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: Container(
+        height: 43,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: textColor, size: 17),
+              const SizedBox(width: 7),
+            ],
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.nunito(
+                  color: textColor,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniHostLogo extends StatelessWidget {
+  const _MiniHostLogo();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 28,
+      child: Stack(
+        alignment: Alignment.center,
+        children: const [
+          Icon(Icons.location_on_rounded, color: Color(0xFF46C5FF), size: 27),
+          Positioned(
+            top: 6,
+            child: Text(
+              'P',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                height: 1,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ParkealoWordmark extends StatelessWidget {
+  const _ParkealoWordmark();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const _MiniHostLogo(),
+        const SizedBox(width: 7),
+        Text(
+          'Parkealo',
+          style: GoogleFonts.nunito(
+            color: AppColors.blue,
+            fontSize: 18,
+            fontWeight: FontWeight.w900,
+            height: 1,
+          ),
+        ),
       ],
     );
   }

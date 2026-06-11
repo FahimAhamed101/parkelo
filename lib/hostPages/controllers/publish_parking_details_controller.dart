@@ -9,6 +9,7 @@ class PublishParkingDetailsController extends GetxController {
   final rulesController = TextEditingController();
 
   final parkingType = 'public'.obs;
+  final approvalMode = 'automatic'.obs;
   final floors = 1.obs;
   final open24Hours = true.obs;
   final isSaving = false.obs;
@@ -17,14 +18,6 @@ class PublishParkingDetailsController extends GetxController {
   void onInit() {
     super.onInit();
     _loadDraft();
-  }
-
-  @override
-  void onClose() {
-    spacesController.dispose();
-    descriptionController.dispose();
-    rulesController.dispose();
-    super.onClose();
   }
 
   void _loadDraft() {
@@ -37,19 +30,31 @@ class PublishParkingDetailsController extends GetxController {
         (parking['parkingType'] as String? ?? 'public') == 'private'
         ? 'private'
         : 'public';
-    spacesController.text =
-        ((availability['total'] as num?)?.toInt() ?? 10).toString();
+    approvalMode.value =
+        (parking['approvalMode'] as String? ?? 'automatic') == 'host_approval'
+        ? 'host_approval'
+        : 'automatic';
+    spacesController.text = ((availability['total'] as num?)?.toInt() ?? 10)
+        .toString();
     floors.value = ((availability['floors'] as num?)?.toInt() ?? 1).clamp(
       1,
       30,
     );
-    open24Hours.value = services.any((service) => service['code'] == 'open_24_7');
+    open24Hours.value = services.any(
+      (service) => service['code'] == 'open_24_7',
+    );
     descriptionController.text = parking['description'] as String? ?? '';
     rulesController.text = parking['rules'] as String? ?? '';
   }
 
   void setParkingType(String value) {
     parkingType.value = value == 'private' ? 'private' : 'public';
+  }
+
+  void setApprovalMode(String value) {
+    approvalMode.value = value == 'host_approval'
+        ? 'host_approval'
+        : 'automatic';
   }
 
   void setOpen24Hours(bool value) {
@@ -88,6 +93,8 @@ class PublishParkingDetailsController extends GetxController {
       await HostPublishFlowService.instance.saveDetails({
         'parkingType': parkingType.value,
         'accessType': parkingType.value,
+        'approvalMode': approvalMode.value,
+        'reservationMode': approvalMode.value,
         'totalSpaces': totalSpaces,
         'spacesCount': totalSpaces,
         'floors': floors.value,
@@ -99,7 +106,7 @@ class PublishParkingDetailsController extends GetxController {
         'parkingRules': rulesController.text.trim(),
       });
 
-      Get.toNamed('/publish-parking-spaces');
+      Get.offNamed('/publish-parking-spaces');
     } catch (error) {
       Get.snackbar(
         'Publish parking',

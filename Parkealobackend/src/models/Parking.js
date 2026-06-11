@@ -184,6 +184,12 @@ const parkingSchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    occupancy: {
+      occupiedSpaces: {
+        type: [String],
+        default: [],
+      },
+    },
     submission: {
       status: {
         type: String,

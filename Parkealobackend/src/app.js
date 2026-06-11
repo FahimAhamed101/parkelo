@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const path = require("path");
 
 const accountRoutes = require("./routes/accountRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -15,8 +16,60 @@ const corsOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean)
   : true;
 
+function redactRequestBody(value) {
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const sensitiveKeys = new Set([
+    "authorization",
+    "confirmPassword",
+    "currentPassword",
+    "jwt",
+    "newPassword",
+    "password",
+    "refreshToken",
+    "secret",
+    "token",
+  ]);
+
+  if (Array.isArray(value)) {
+    return value.map(redactRequestBody);
+  }
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      sensitiveKeys.has(key.toLowerCase()) ? "[REDACTED]" : redactRequestBody(item),
+    ]),
+  );
+}
+
+function requestLogger(req, res, next) {
+  const startedAt = Date.now();
+  const ip = req.ip || req.socket?.remoteAddress || "unknown";
+  const query = Object.keys(req.query || {}).length ? ` query=${JSON.stringify(req.query)}` : "";
+
+  console.log(`[request] ${req.method} ${req.originalUrl} ip=${ip}${query}`);
+
+  res.on("finish", () => {
+    const body = redactRequestBody(req.body);
+    const hasBody = body && typeof body === "object" && Object.keys(body).length > 0;
+
+    console.log(
+      `[response] ${req.method} ${req.originalUrl} status=${res.statusCode} durationMs=${Date.now() - startedAt}${
+        hasBody ? ` body=${JSON.stringify(body)}` : ""
+      }`,
+    );
+  });
+
+  next();
+}
+
+app.use(requestLogger);
 app.use(cors({ origin: corsOrigins, credentials: true }));
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "28mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (req, res) => {
   res.json({
@@ -37,6 +90,19 @@ app.use((req, res, next) => {
 });
 
 app.use((error, req, res, next) => {
+  const statusCode = error.statusCode || 500;
+  const body = redactRequestBody(req.body);
+  const hasBody = body && typeof body === "object" && Object.keys(body).length > 0;
+
+  console.error("[error]", {
+    method: req.method,
+    url: req.originalUrl,
+    status: statusCode,
+    message: error.message,
+    details: error.details,
+    body: hasBody ? body : undefined,
+  });
+
   if (error.name === "ValidationError") {
     const errors = Object.values(error.errors).map((item) => ({
       field: item.path,
@@ -58,8 +124,6 @@ app.use((error, req, res, next) => {
       message: `${field} already exists`,
     });
   }
-
-  const statusCode = error.statusCode || 500;
 
   if (statusCode === 500 && process.env.NODE_ENV !== "test") {
     console.error(error.stack || error);

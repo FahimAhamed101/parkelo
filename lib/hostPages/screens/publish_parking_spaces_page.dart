@@ -1,74 +1,40 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-import '../services/host_publish_flow_service.dart';
+import '../controllers/publish_parking_spaces_controller.dart';
 import '../widgets/publish_parking_flow.dart';
 
-class PublishParkingSpacesPage extends StatefulWidget {
+class PublishParkingSpacesPage extends StatelessWidget {
   const PublishParkingSpacesPage({super.key});
 
   @override
-  State<PublishParkingSpacesPage> createState() =>
-      _PublishParkingSpacesPageState();
-}
-
-class _PublishParkingSpacesPageState extends State<PublishParkingSpacesPage> {
-  late int _totalSpaces;
-  late int _floors;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final parking = HostPublishFlowService.instance.parking ?? const {};
-    final spaces = parking['spaces'] as Map<String, dynamic>? ?? const {};
-    _totalSpaces = ((spaces['total'] as num?)?.toInt() ?? 10).clamp(1, 120);
-    _floors = ((spaces['floors'] as num?)?.toInt() ?? 1).clamp(1, 20);
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return PublishFlowScaffold(
-      currentStep: 2,
-      stepTitle: 'Spaces',
-      showBackAction: true,
-      onContinue: _saving ? () {} : _submit,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(18, 30, 18, 24),
-        child: Column(
-          children: [
-            _SpacesPreviewCard(totalSpaces: _totalSpaces, floors: _floors),
-            if (_saving) ...[
-              const SizedBox(height: 16),
-              const CircularProgressIndicator(),
+    final controller = Get.put(PublishParkingSpacesController());
+
+    return Obx(
+      () => PublishFlowScaffold(
+        currentStep: 2,
+        stepTitle: 'Spaces',
+        showBackAction: true,
+        onContinue: controller.isSaving.value ? () {} : controller.submit,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(18, 30, 18, 24),
+          child: Column(
+            children: [
+              _SpacesPreviewCard(
+                totalSpaces: controller.totalSpaces.value,
+                floors: controller.floors.value,
+              ),
+              if (controller.isSaving.value) ...[
+                const SizedBox(height: 16),
+                const CircularProgressIndicator(),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
-  }
-
-  Future<void> _submit() async {
-    final identifiers = List<String>.generate(_totalSpaces, (index) {
-      return '${index + 1}';
-    });
-
-    setState(() => _saving = true);
-    try {
-      await HostPublishFlowService.instance.saveSpaces({
-        'floors': _floors,
-        'identifiers': identifiers,
-      });
-
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/publish-parking-services');
-    } catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 }
 

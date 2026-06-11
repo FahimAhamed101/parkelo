@@ -22,6 +22,7 @@ const {
   startOnboarding,
   submitParking,
   updateDetailsStep,
+  updateParkingLayout,
   updateLocationStep,
   updatePhotosStep,
   updateServicesStep,
@@ -50,6 +51,7 @@ router.get("/parkings/:id/qr", getParkingQr);
 router.patch("/parkings/:id/location", updateLocationStep);
 router.patch("/parkings/:id/details", updateDetailsStep);
 router.patch("/parkings/:id/spaces", updateSpacesStep);
+router.patch("/parkings/:id/layout", updateParkingLayout);
 router.patch("/parkings/:id/services", updateServicesStep);
 router.patch("/parkings/:id/photos", updatePhotosStep);
 router.get("/parkings/:id/review", getReview);

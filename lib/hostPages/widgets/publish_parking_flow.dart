@@ -59,7 +59,7 @@ class PublishFlowScaffold extends StatelessWidget {
               currentStep: currentStep,
               stepTitle: stepTitle,
               steps: steps,
-              onBack: () => Navigator.maybePop(context),
+              onBack: () => _goBack(context),
             ),
             Expanded(child: child),
           ],
@@ -67,12 +67,24 @@ class PublishFlowScaffold extends StatelessWidget {
         bottomNavigationBar: PublishFlowFooter(
           showBackAction: showBackAction,
           continueLabel: continueLabel,
-          onBack: () => Navigator.maybePop(context),
+          onBack: () => _goBack(context),
           onContinue: onContinue,
           continueColor: continueColor,
         ),
       ),
     );
+  }
+
+  void _goBack(BuildContext context) {
+    if (showBackAction && currentStep > 0) {
+      Navigator.pushReplacementNamed(
+        context,
+        PublishFlowHeader._stepRoutes[currentStep - 1],
+      );
+      return;
+    }
+
+    Navigator.maybePop(context);
   }
 }
 

@@ -1,11 +1,23 @@
 ﻿const mongoose = require("mongoose");
 
 const Booking = require("../models/Booking");
+const cloudinary = require("cloudinary").v2;
 const HostBankAccount = require("../models/HostBankAccount");
 const HostWithdrawal = require("../models/HostWithdrawal");
 const Parking = require("../models/Parking");
 const { HttpError } = require("../utils/httpError");
 const { formatMoney, roundMoney } = require("../utils/pricing");
+
+function cleanEnv(value) {
+  return typeof value === "string" ? value.trim() : value;
+}
+
+cloudinary.config({
+  cloud_name: cleanEnv(process.env.CLOUDINARY_CLOUD_NAME),
+  api_key: cleanEnv(process.env.CLOUDINARY_API_KEY),
+  api_secret: cleanEnv(process.env.CLOUDINARY_API_SECRET),
+  secure: true,
+});
 
 const serviceLabels = {
   covered: "Covered",
@@ -197,8 +209,61 @@ function normalizeImageList(value) {
     return [];
   }
 
+  if (typeof value === "string" && /^data:image\//i.test(value.trim())) {
+    return [value.trim()];
+  }
+
   const values = Array.isArray(value) ? value : String(value).split(",");
   return values.map(cleanString).filter(Boolean);
+}
+
+function isPublicImageUrl(value) {
+  return /^https?:\/\//i.test(value) || /^\/uploads\//i.test(value);
+}
+
+async function uploadDataUrlImage(value, parkingId, index) {
+  const match = /^data:image\/(png|jpe?g|webp);base64,([\s\S]+)$/i.exec(value);
+  if (!match) {
+    return null;
+  }
+
+  const buffer = Buffer.from(match[2], "base64");
+
+  if (!buffer.length) {
+    throw new HttpError(400, "Photo data is empty");
+  }
+
+  if (buffer.length > 5 * 1024 * 1024) {
+    throw new HttpError(400, "Each photo must be 5MB or smaller");
+  }
+
+  if (
+    !process.env.CLOUDINARY_CLOUD_NAME ||
+    !process.env.CLOUDINARY_API_KEY ||
+    !process.env.CLOUDINARY_API_SECRET
+  ) {
+    throw new HttpError(500, "Cloudinary is not configured");
+  }
+
+  const result = await cloudinary.uploader.upload(value, {
+    folder: `parkealo/parkings/${parkingId}`,
+    public_id: `photo-${Date.now()}-${index}`,
+    overwrite: false,
+    resource_type: "image",
+  });
+
+  return result.secure_url || result.url;
+}
+
+async function normalizePublishedImages(value, parkingId) {
+  return Promise.all(normalizeImageList(value).map(async (item, index) => {
+    const uploadedUrl = await uploadDataUrlImage(item, parkingId, index);
+    if (uploadedUrl) return uploadedUrl;
+    if (isPublicImageUrl(item)) {
+      return item;
+    }
+    throw new HttpError(400, "Photos must be uploaded from the app or use public image URLs");
+  }));
 }
 
 function createSpaceIdentifiers(totalSpaces) {
@@ -240,11 +305,98 @@ function presentRate(rate = {}, currencySymbol = "RD$") {
 function getCompletedSteps(parking) {
   return {
     location: Boolean(parking.name && parking.zone && parking.address?.line1 && parking.location?.coordinates?.length === 2),
-    details: Boolean(parking.parkingType && parking.availability?.totalSpaces > 0 && parking.description),
+    details: Boolean(parking.parkingType && parking.availability?.totalSpaces > 0),
     spaces: Boolean(parking.spaceIdentifiers?.length),
     services: Boolean(parking.services?.length),
     photos: Boolean(parking.media?.heroImageUrl || parking.media?.gallery?.length),
+    pricing: Boolean(parking.rate?.hourly > 0 && parking.rate?.daily > 0 && parking.sections?.length),
   };
+}
+
+function getRateValue(source, primaryKey, alternateKey, fallback) {
+  return roundMoney(source?.[primaryKey] ?? source?.[alternateKey] ?? fallback ?? 0);
+}
+
+function getSectionRateValue(section, primaryKey, alternateKey, fallback) {
+  return roundMoney(section?.rate?.[primaryKey] ?? section?.[primaryKey] ?? section?.[alternateKey] ?? fallback ?? 0);
+}
+
+function getOccupiedSpaces(parking) {
+  return new Set((parking.occupancy?.occupiedSpaces || []).map(String));
+}
+
+function buildParkingLayout(parking) {
+  const occupiedSpaces = getOccupiedSpaces(parking);
+  const sourceSections = parking.sections?.length
+    ? parking.sections
+    : buildDefaultSections(parking.availability?.totalSpaces || 0, parking.availability?.floors || 1, parking);
+
+  const sections = sourceSections.map((section, index) => {
+    const spaces = (section.spaces || []).map((space) => {
+      const label = String(space);
+      return {
+        id: label,
+        label,
+        occupied: occupiedSpaces.has(label),
+      };
+    });
+    const occupied = spaces.filter((space) => space.occupied).length;
+
+    return {
+      id: section._id?.toString() || section.code || String(index),
+      code: section.code || String.fromCharCode(65 + index),
+      name: section.name || `Section ${index + 1}`,
+      prefix: section.code || String.fromCharCode(65 + index),
+      enabled: section.enabled !== false,
+      free: Math.max(spaces.length - occupied, 0),
+      occupied,
+      total: spaces.length,
+      spaces,
+    };
+  });
+
+  return {
+    sections,
+    occupiedSpaces: Array.from(occupiedSpaces),
+    total: sections.reduce((sum, section) => sum + section.total, 0),
+    occupied: sections.reduce((sum, section) => sum + section.occupied, 0),
+    free: sections.reduce((sum, section) => sum + section.free, 0),
+  };
+}
+
+function normalizeSectionPayload(sections, fallbackRate) {
+  if (!Array.isArray(sections)) {
+    throw new HttpError(400, "Sections must be an array");
+  }
+
+  return sections.map((section, index) => {
+    const code = cleanString(section.code || section.prefix) || String.fromCharCode(65 + index);
+    const count = Math.max(toNumber(section.count || section.total || section.spacesCount, 0), 0);
+    const rawSpaces = Array.isArray(section.spaces)
+      ? section.spaces
+      : Array.from({ length: count }, (_, itemIndex) => `${code}${itemIndex + 1}`);
+    const spaces = rawSpaces
+      .map((space, itemIndex) => {
+        if (typeof space === "object") {
+          return cleanString(space.label || space.id) || `${code}${itemIndex + 1}`;
+        }
+        return cleanString(space) || `${code}${itemIndex + 1}`;
+      })
+      .filter(Boolean);
+
+    return {
+      code,
+      name: cleanString(section.name) || `Section ${index + 1}`,
+      description: cleanString(section.description),
+      enabled: section.enabled === undefined ? true : isEnabled(section.enabled),
+      spaces,
+      rate: {
+        hourly: getSectionRateValue(section, "hourly", "hourlyRate", fallbackRate.hourly),
+        daily: getSectionRateValue(section, "daily", "dailyRate", fallbackRate.daily),
+        weekly: getSectionRateValue(section, "weekly", "weeklyRate", fallbackRate.weekly),
+      },
+    };
+  });
 }
 
 function presentHostParking(parking) {
@@ -253,6 +405,7 @@ function presentHostParking(parking) {
   const status = parking.submission?.status || "draft";
   const coordinates = parking.location?.coordinates || [];
   const currencySymbol = parking.rate?.currencySymbol || "RD$";
+  const layout = buildParkingLayout(parking);
 
   return {
     id: parking._id.toString(),
@@ -288,6 +441,7 @@ function presentHostParking(parking) {
       floors: parking.availability?.floors || 1,
       identifiers: parking.spaceIdentifiers || [],
     },
+    layout,
     services: (parking.services || []).map((service) => ({
       code: service.code,
       label: service.label,
@@ -676,6 +830,17 @@ const approveManualRequest = asyncHandler(async (req, res) => {
   booking.approvalMode = "host_approval";
   booking.updatedAt = new Date();
   parking.availability.availableSpaces = Math.max((parking.availability.availableSpaces || 0) - 1, 0);
+  const allSpaces = parking.sections?.length
+    ? parking.sections.flatMap((section) => section.spaces || [])
+    : parking.spaceIdentifiers || [];
+  const occupied = new Set((parking.occupancy?.occupiedSpaces || []).map(String));
+  const nextSpace = allSpaces.map(String).find((space) => !occupied.has(space));
+  if (nextSpace) {
+    parking.occupancy = {
+      ...(parking.occupancy?.toObject ? parking.occupancy.toObject() : parking.occupancy || {}),
+      occupiedSpaces: [...occupied, nextSpace],
+    };
+  }
 
   await Promise.all([booking.save(), parking.save()]);
 
@@ -896,6 +1061,7 @@ const updateDetailsStep = asyncHandler(async (req, res) => {
 
   parking.parkingType = cleanString(req.body.parkingType || req.body.accessType) === "private" ? "private" : "public";
   parking.accessType = parking.parkingType;
+  parking.approvalMode = normalizeApprovalMode(req.body.approvalMode || req.body.reservationMode || parking.approvalMode);
   parking.description = cleanString(req.body.description) || parking.description;
   parking.rules.safetyNotice = cleanString(req.body.rules || req.body.parkingRules) || parking.rules.safetyNotice;
   parking.availability.totalSpaces = totalSpaces;
@@ -960,6 +1126,41 @@ const updateSpacesStep = asyncHandler(async (req, res) => {
   });
 });
 
+const updateParkingLayout = asyncHandler(async (req, res) => {
+  const parking = await findOwnedParking(req.user._id, req.params.id);
+  const fallbackRate = {
+    hourly: parking.rate?.hourly || 150,
+    daily: parking.rate?.daily || 800,
+    weekly: parking.rate?.weekly || 4500,
+  };
+
+  if (Array.isArray(req.body.sections)) {
+    parking.sections = normalizeSectionPayload(req.body.sections, fallbackRate);
+  }
+
+  const allSpaces = (parking.sections || []).flatMap((section) => section.spaces || []);
+  const occupied = Array.isArray(req.body.occupiedSpaces)
+    ? req.body.occupiedSpaces.map(cleanString).filter((space) => space && allSpaces.includes(space))
+    : parking.occupancy?.occupiedSpaces || [];
+
+  parking.spaceIdentifiers = allSpaces;
+  parking.occupancy = {
+    ...(parking.occupancy?.toObject ? parking.occupancy.toObject() : parking.occupancy || {}),
+    occupiedSpaces: occupied,
+  };
+  parking.availability.totalSpaces = allSpaces.length;
+  parking.availability.availableSpaces = Math.max(allSpaces.length - occupied.length, 0);
+  parking.availability.floors = Math.max(parking.sections?.length || 1, 1);
+
+  await parking.save();
+
+  res.json({
+    success: true,
+    message: "Parking layout saved",
+    parking: presentHostParking(parking),
+  });
+});
+
 const updateServicesStep = asyncHandler(async (req, res) => {
   const parking = await findOwnedParking(req.user._id, req.params.id);
 
@@ -976,11 +1177,19 @@ const updateServicesStep = asyncHandler(async (req, res) => {
 
 const updatePhotosStep = asyncHandler(async (req, res) => {
   const parking = await findOwnedParking(req.user._id, req.params.id);
-  const gallery = normalizeImageList(req.body.gallery || req.body.photos);
-  const heroImageUrl = cleanString(req.body.heroImageUrl || req.body.mainPhoto) || gallery[0] || parking.media.heroImageUrl;
+  const gallery = await normalizePublishedImages(req.body.gallery || req.body.photos, parking._id.toString());
+  let heroImageUrl = gallery[0] || parking.media.heroImageUrl;
+  const explicitHero = cleanString(req.body.heroImageUrl || req.body.mainPhoto);
+  if (!heroImageUrl && explicitHero) {
+    const heroCandidates = await normalizePublishedImages(explicitHero, parking._id.toString());
+    heroImageUrl = heroCandidates[0] || heroImageUrl;
+  }
+  const thumbnailUrl = cleanString(req.body.thumbnailUrl);
 
   parking.media.heroImageUrl = heroImageUrl;
-  parking.media.thumbnailUrl = cleanString(req.body.thumbnailUrl) || heroImageUrl || parking.media.thumbnailUrl;
+  parking.media.thumbnailUrl = thumbnailUrl && isPublicImageUrl(thumbnailUrl)
+    ? thumbnailUrl
+    : heroImageUrl || parking.media.thumbnailUrl;
   parking.media.gallery = gallery.length ? gallery : parking.media.gallery;
   parking.submission.currentStep = Math.max(parking.submission.currentStep || 1, 6);
   await parking.save();
@@ -1016,13 +1225,21 @@ const submitParking = asyncHandler(async (req, res) => {
     .filter(([, completed]) => !completed)
     .map(([step]) => step);
 
+  console.log("[host.submitParking]", {
+    parkingId: String(parking._id),
+    userId: String(req.user._id),
+    completedSteps,
+    missingSteps,
+  });
+
   if (missingSteps.length) {
     throw new HttpError(400, "Complete all required steps before submitting", { missingSteps });
   }
 
-  parking.status = "under_review";
-  parking.submission.status = "under_review";
+  parking.status = "active";
+  parking.submission.status = "approved";
   parking.submission.submittedAt = new Date();
+  parking.submission.reviewedAt = new Date();
   parking.submission.estimatedReviewHours = toNumber(req.body.estimatedReviewHours, 2);
   req.user.hostProfile = {
     ...(req.user.hostProfile?.toObject ? req.user.hostProfile.toObject() : req.user.hostProfile || {}),
@@ -1041,13 +1258,13 @@ const submitParking = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: "Parking submitted for review",
+    message: "Parking published",
     parking: presentHostParking(parking),
     notice: {
-      title: "Request sent",
-      message: `${parking.name} is being reviewed by the Parkealo team.`,
+      title: "Parking published",
+      message: `${parking.name} is live and ready for bookings.`,
       estimatedReviewHours: parking.submission.estimatedReviewHours,
-      actionLabel: "Go to admin panel",
+      actionLabel: "Go to host panel",
     },
   });
 });
@@ -1264,9 +1481,9 @@ const savePricing = asyncHandler(async (req, res) => {
 
   if (req.body.global || req.body.rate || req.body.hourlyRate !== undefined) {
     const globalRate = req.body.global || req.body.rate || req.body;
-    parking.rate.hourly = roundMoney(globalRate.hourly - globalRate.hourlyRate - parking.rate.hourly);
-    parking.rate.daily = roundMoney(globalRate.daily - globalRate.dailyRate - parking.rate.daily);
-    parking.rate.weekly = roundMoney(globalRate.weekly - globalRate.weeklyRate - parking.rate.weekly);
+    parking.rate.hourly = getRateValue(globalRate, "hourly", "hourlyRate", parking.rate.hourly);
+    parking.rate.daily = getRateValue(globalRate, "daily", "dailyRate", parking.rate.daily);
+    parking.rate.weekly = getRateValue(globalRate, "weekly", "weeklyRate", parking.rate.weekly);
   }
 
   if (req.body.dynamicPricing) {
@@ -1296,9 +1513,9 @@ const savePricing = asyncHandler(async (req, res) => {
       enabled: section.enabled === undefined ? true : isEnabled(section.enabled),
       spaces: Array.isArray(section.spaces) ? section.spaces.map(cleanString).filter(Boolean) : [],
       rate: {
-        hourly: roundMoney(section.rate?.hourly - section.hourlyRate - parking.rate.hourly),
-        daily: roundMoney(section.rate?.daily - section.dailyRate - parking.rate.daily),
-        weekly: roundMoney(section.rate?.weekly - section.weeklyRate - parking.rate.weekly),
+        hourly: getSectionRateValue(section, "hourly", "hourlyRate", parking.rate.hourly),
+        daily: getSectionRateValue(section, "daily", "dailyRate", parking.rate.daily),
+        weekly: getSectionRateValue(section, "weekly", "weeklyRate", parking.rate.weekly),
       },
     }));
   } else if (!parking.sections?.length) {
@@ -1343,6 +1560,7 @@ module.exports = {
   startOnboarding,
   submitParking,
   updateDetailsStep,
+  updateParkingLayout,
   updateLocationStep,
   updatePhotosStep,
   updateServicesStep,

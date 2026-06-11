@@ -13,6 +13,7 @@ class CustomParkingListCard extends StatefulWidget {
   final String reviews;
   final String price;
   final List<String> tags;
+  final Map<String, dynamic> details;
   final bool showFavoriteIcon;
   final bool initialFavorited;
 
@@ -25,6 +26,7 @@ class CustomParkingListCard extends StatefulWidget {
     required this.reviews,
     required this.price,
     this.tags = const [],
+    this.details = const {},
     this.showFavoriteIcon = true,
     this.initialFavorited = false,
   });
@@ -51,7 +53,7 @@ class _CustomParkingListCardState extends State<CustomParkingListCard> {
   void _openDetails() {
     Get.toNamed(
       AppRoutes.parkingDetailsScreen,
-      arguments: {'fromFavorites': !widget.showFavoriteIcon},
+      arguments: {...widget.details, 'fromFavorites': !widget.showFavoriteIcon},
     );
   }
 
@@ -74,15 +76,7 @@ class _CustomParkingListCardState extends State<CustomParkingListCard> {
           children: [
             Stack(
               children: [
-                Container(
-                  height: 138,
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    gradient: AppColors.gradPublic,
-                  ),
-                  alignment: Alignment.center,
-                  child: const _ParkingPinLogo(),
-                ),
+                _CardHero(imageUrl: widget.imageUrl),
                 if (widget.showFavoriteIcon)
                   Positioned(
                     top: 12,
@@ -125,7 +119,7 @@ class _CustomParkingListCardState extends State<CustomParkingListCard> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '2 floors',
+                      '${widget.details['floors'] ?? 2} floors',
                       style: GoogleFonts.nunito(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
@@ -261,6 +255,41 @@ class _CustomParkingListCardState extends State<CustomParkingListCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _CardHero extends StatelessWidget {
+  const _CardHero({required this.imageUrl});
+
+  final String imageUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    if (imageUrl.isNotEmpty) {
+      return Image.network(
+        imageUrl,
+        height: 138,
+        width: double.infinity,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const _FallbackHero(),
+      );
+    }
+    return const _FallbackHero();
+  }
+}
+
+class _FallbackHero extends StatelessWidget {
+  const _FallbackHero();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 138,
+      width: double.infinity,
+      decoration: const BoxDecoration(gradient: AppColors.gradPublic),
+      alignment: Alignment.center,
+      child: const _ParkingPinLogo(),
     );
   }
 }

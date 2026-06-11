@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
+import 'controllers/driver_bookings_controller.dart';
 
 class BookingsScreen extends StatefulWidget {
   const BookingsScreen({super.key});
@@ -13,8 +14,15 @@ class BookingsScreen extends StatefulWidget {
 }
 
 class _BookingsScreenState extends State<BookingsScreen> {
-  String selectedFilter = 'All';
-  bool isCheckedIn = false;
+  late final DriverBookingsController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.isRegistered<DriverBookingsController>()
+        ? Get.find<DriverBookingsController>()
+        : Get.put(DriverBookingsController());
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -67,15 +75,7 @@ class _BookingsScreenState extends State<BookingsScreen> {
               ),
               const SizedBox(height: 12),
               _buildTabs(),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    _buildActiveTab(),
-                    _buildSimpleList('No requests yet'),
-                    _buildSimpleList('No reservation history yet'),
-                  ],
-                ),
-              ),
+              Expanded(child: _buildTabViews()),
             ],
           ),
         ),
@@ -84,49 +84,47 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 
   Widget _buildFilterChip(String label, IconData icon) {
-    final isSelected = selectedFilter == label;
-    return GestureDetector(
-      onTap: () {
-        setState(() {
-          selectedFilter = label;
-        });
-      },
-      child: Container(
-        height: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.blueLt : AppColors.bg,
-          borderRadius: BorderRadius.circular(100),
-          border: Border.all(
-            color: isSelected ? AppColors.blue : AppColors.border,
-            width: isSelected ? 1.5 : 1,
+    return Obx(() {
+      final isSelected = controller.selectedFilter.value == label;
+      return GestureDetector(
+        onTap: () => controller.selectedFilter.value = label,
+        child: Container(
+          height: 28,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? AppColors.blueLt : AppColors.bg,
+            borderRadius: BorderRadius.circular(100),
+            border: Border.all(
+              color: isSelected ? AppColors.blue : AppColors.border,
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 12,
+                color: label == 'Quick'
+                    ? AppColors.orange
+                    : isSelected
+                    ? AppColors.blue
+                    : AppColors.textSub,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                label,
+                style: GoogleFonts.nunito(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w800,
+                  color: isSelected ? AppColors.blue : AppColors.textSub,
+                ),
+              ),
+            ],
           ),
         ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              size: 12,
-              color: label == 'Quick'
-                  ? AppColors.orange
-                  : isSelected
-                  ? AppColors.blue
-                  : AppColors.textSub,
-            ),
-            const SizedBox(width: 5),
-            Text(
-              label,
-              style: GoogleFonts.nunito(
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                color: isSelected ? AppColors.blue : AppColors.textSub,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    });
   }
 
   Widget _buildTabs() {
@@ -135,6 +133,15 @@ class _BookingsScreenState extends State<BookingsScreen> {
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
       child: TabBar(
+        onTap: (index) {
+          controller.loadTab(
+            [
+              DriverBookingTab.active,
+              DriverBookingTab.requests,
+              DriverBookingTab.history,
+            ][index],
+          );
+        },
         indicatorColor: AppColors.blue,
         indicatorWeight: 2.5,
         indicatorSize: TabBarIndicatorSize.tab,
@@ -157,63 +164,134 @@ class _BookingsScreenState extends State<BookingsScreen> {
     );
   }
 
-  Widget _buildActiveTab() {
+  Widget _buildTabViews() {
+    return Obx(() {
+      if (controller.isLoading.value &&
+          controller.activeBookings.isEmpty &&
+          controller.requestBookings.isEmpty &&
+          controller.historyBookings.isEmpty) {
+        return const Center(child: CircularProgressIndicator());
+      }
+
+      return TabBarView(
+        children: [
+          _buildBookingList(
+            controller.filtered(controller.activeBookings),
+            emptyText: 'No active reservations yet',
+            showActions: true,
+          ),
+          _buildBookingList(
+            controller.filtered(controller.requestBookings),
+            emptyText: 'No requests yet',
+          ),
+          _buildBookingList(
+            controller.filtered(controller.historyBookings),
+            emptyText: 'No reservation history yet',
+          ),
+        ],
+      );
+    });
+  }
+
+  Widget _buildBookingList(
+    List<DriverBookingItem> bookings, {
+    required String emptyText,
+    bool showActions = false,
+  }) {
+    if (bookings.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: controller.refreshAll,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(height: MediaQuery.of(context).size.height * 0.28),
+            Center(
+              child: Text(
+                emptyText,
+                style: GoogleFonts.nunito(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSub,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView(
+      physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(15, 16, 15, 20),
       children: [
-        Row(children: [_buildModePill(), const Spacer(), _buildChatButton()]),
+        Row(
+          children: [
+            _buildModePill(),
+            const Spacer(),
+            _buildChatButton(bookings.first),
+          ],
+        ),
         const SizedBox(height: 8),
-        isCheckedIn
-            ? _CheckedInReservationCard(
-                onCheckOut: () {
-                  setState(() {
-                    isCheckedIn = false;
-                  });
-                },
-              )
-            : _PendingReservationCard(
-                onOccupiedTap: _showOccupiedBottomSheet,
-                onScanTap: () async {
-                  final result = await Get.toNamed(AppRoutes.scanningScreen);
-                  if (result == true) {
-                    setState(() {
-                      isCheckedIn = true;
-                    });
-                  }
-                },
-              ),
+        for (final booking in bookings) ...[
+          _ReservationCard(
+            booking: booking,
+            showActions: showActions,
+            onOccupiedTap: _showOccupiedBottomSheet,
+            onScanTap: () => _scanAndCheckIn(booking),
+            onCheckOut: () => controller.checkOut(booking),
+          ),
+          const SizedBox(height: 12),
+        ],
       ],
     );
   }
 
-  Widget _buildModePill() {
-    return Container(
-      height: 24,
-      padding: const EdgeInsets.symmetric(horizontal: 11),
-      decoration: BoxDecoration(
-        color: AppColors.greenLt,
-        borderRadius: BorderRadius.circular(100),
-        border: Border.all(color: AppColors.greenMid),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.bolt_rounded, size: 13, color: AppColors.green),
-          const SizedBox(width: 5),
-          Text(
-            'Automatic',
-            style: GoogleFonts.nunito(
-              fontSize: 11,
-              fontWeight: FontWeight.w900,
-              color: AppColors.green,
-            ),
-          ),
-        ],
-      ),
+  Future<void> _scanAndCheckIn(DriverBookingItem booking) async {
+    final result = await Get.toNamed(
+      AppRoutes.scanningScreen,
+      arguments: {'bookingId': booking.id},
     );
+    if (result is String && result.isNotEmpty) {
+      await controller.checkIn(booking, result);
+    }
   }
 
-  Widget _buildChatButton() {
+  Widget _buildModePill() {
+    return Obx(() {
+      final active = controller.filtered(controller.activeBookings);
+      final automatic = active.isEmpty || active.first.isAutomatic;
+      return Container(
+        height: 24,
+        padding: const EdgeInsets.symmetric(horizontal: 11),
+        decoration: BoxDecoration(
+          color: AppColors.greenLt,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: AppColors.greenMid),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              automatic ? Icons.bolt_rounded : Icons.hourglass_empty_rounded,
+              size: 13,
+              color: AppColors.green,
+            ),
+            const SizedBox(width: 5),
+            Text(
+              automatic ? 'Automatic' : 'Host approval',
+              style: GoogleFonts.nunito(
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                color: AppColors.green,
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildChatButton(DriverBookingItem booking) {
     return Container(
       height: 30,
       padding: const EdgeInsets.symmetric(horizontal: 13),
@@ -222,36 +300,33 @@ class _BookingsScreenState extends State<BookingsScreen> {
         borderRadius: BorderRadius.circular(100),
         border: Border.all(color: AppColors.blueMid),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.chat_bubble_outline_rounded,
-            size: 15,
-            color: AppColors.blue,
-          ),
-          const SizedBox(width: 6),
-          Text(
-            'Chat',
-            style: GoogleFonts.nunito(
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(100),
+        onTap: () => Get.toNamed(
+          AppRoutes.bookingChatScreen,
+          arguments: {
+            'bookingId': booking.id,
+            'parkingName': booking.parkingName,
+          },
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.chat_bubble_outline_rounded,
+              size: 15,
               color: AppColors.blue,
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSimpleList(String text) {
-    return Center(
-      child: Text(
-        text,
-        style: GoogleFonts.nunito(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          color: AppColors.textSub,
+            const SizedBox(width: 6),
+            Text(
+              'Chat',
+              style: GoogleFonts.nunito(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: AppColors.blue,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -315,13 +390,19 @@ class _BookingsScreenState extends State<BookingsScreen> {
   }
 }
 
-class _PendingReservationCard extends StatelessWidget {
+class _ReservationCard extends StatelessWidget {
+  final DriverBookingItem booking;
+  final bool showActions;
   final VoidCallback onOccupiedTap;
   final VoidCallback onScanTap;
+  final VoidCallback onCheckOut;
 
-  const _PendingReservationCard({
+  const _ReservationCard({
+    required this.booking,
+    required this.showActions,
     required this.onOccupiedTap,
     required this.onScanTap,
+    required this.onCheckOut,
   });
 
   @override
@@ -348,7 +429,9 @@ class _PendingReservationCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Parking Colonial\nPremium',
+                        booking.parkingName,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.nunito(
                           fontSize: 14,
                           height: 1.05,
@@ -358,7 +441,9 @@ class _PendingReservationCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Today - 10:30 - 12:30',
+                        booking.dateTimeLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.nunito(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -382,7 +467,9 @@ class _PendingReservationCard extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    'Pending check-in',
+                    booking.statusLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: GoogleFonts.nunito(
                       fontSize: 11,
                       height: 1.1,
@@ -405,49 +492,52 @@ class _PendingReservationCard extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _DetailBlock('License Plate', 'A123456')),
+                    Expanded(
+                      child: _DetailBlock('License Plate', booking.vehiclePlate),
+                    ),
                     _DetailBlock(
                       'Booking',
-                      'RD\$150 x 2h',
+                      booking.bookingPrice,
                       alignEnd: true,
                       valueColor: AppColors.blue,
                     ),
                   ],
                 ),
-                const SizedBox(height: 15),
-                _WarningActionButton(
-                  text: 'Parking occupied',
-                  color: AppColors.warnBg,
-                  textColor: AppColors.warn,
-                  borderColor: AppColors.warnBd,
-                  icon: Icons.warning_amber_rounded,
-                  onTap: onOccupiedTap,
-                ),
-                const SizedBox(height: 9),
-                _WarningActionButton(
-                  text: 'Scan QR - Check-in',
-                  color: AppColors.green,
-                  textColor: Colors.white,
-                  icon: Icons.qr_code_2_rounded,
-                  onTap: onScanTap,
-                ),
+                if (showActions) ...[
+                  const SizedBox(height: 15),
+                  if (booking.isPendingCheckIn) ...[
+                    _WarningActionButton(
+                      text: 'Parking occupied',
+                      color: AppColors.warnBg,
+                      textColor: AppColors.warn,
+                      borderColor: AppColors.warnBd,
+                      icon: Icons.warning_amber_rounded,
+                      onTap: onOccupiedTap,
+                    ),
+                    const SizedBox(height: 9),
+                    _WarningActionButton(
+                      text: 'Scan QR - Check-in',
+                      color: AppColors.green,
+                      textColor: Colors.white,
+                      icon: Icons.qr_code_2_rounded,
+                      onTap: booking.canCheckIn ? onScanTap : () {},
+                    ),
+                  ] else if (booking.isInProgress) ...[
+                    _WarningActionButton(
+                      text: 'Check-out',
+                      color: AppColors.green,
+                      textColor: Colors.white,
+                      icon: Icons.logout_rounded,
+                      onTap: booking.canCheckOut ? onCheckOut : () {},
+                    ),
+                  ],
+                ],
               ],
             ),
           ),
         ],
       ),
     );
-  }
-}
-
-class _CheckedInReservationCard extends StatelessWidget {
-  final VoidCallback onCheckOut;
-
-  const _CheckedInReservationCard({required this.onCheckOut});
-
-  @override
-  Widget build(BuildContext context) {
-    return _PendingReservationCard(onOccupiedTap: () {}, onScanTap: onCheckOut);
   }
 }
 

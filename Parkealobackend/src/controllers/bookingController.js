@@ -1,4 +1,5 @@
 const QRCode = require("qrcode");
+const Stripe = require("stripe");
 
 const Booking = require("../models/Booking");
 const Parking = require("../models/Parking");
@@ -9,6 +10,7 @@ const { calculateBookingPricing, calculateExtensionPricing, formatMoney, roundMo
 const activeStatuses = ["pending_checkin", "in_progress"];
 const requestStatuses = ["pending_host_approval"];
 const historyStatuses = ["completed", "cancelled", "declined", "expired"];
+let stripeClient;
 
 const statusLabels = {
   pending_host_approval: "Pending approval",
@@ -26,6 +28,54 @@ function asyncHandler(handler) {
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : undefined;
+}
+
+function cleanEnv(name) {
+  return cleanString(process.env[name]);
+}
+
+function getStripeClient() {
+  const secretKey = cleanEnv("STRIPE_SECRET_KEY");
+
+  if (!secretKey) {
+    throw new HttpError(503, "Stripe is not configured on the server");
+  }
+
+  if (!stripeClient) {
+    stripeClient = Stripe(secretKey);
+  }
+
+  return stripeClient;
+}
+
+function getStripePublishableKey() {
+  return cleanEnv("STRIPE_PUBLISHABLE_KEY");
+}
+
+function getStripeCurrency(pricing) {
+  return (cleanEnv("STRIPE_CURRENCY") || pricing.currency || "DOP").toLowerCase();
+}
+
+function toStripeAmount(amount, currency) {
+  const zeroDecimalCurrencies = new Set([
+    "bif",
+    "clp",
+    "djf",
+    "gnf",
+    "jpy",
+    "kmf",
+    "krw",
+    "mga",
+    "pyg",
+    "rwf",
+    "ugx",
+    "vnd",
+    "vuv",
+    "xaf",
+    "xof",
+    "xpf",
+  ]);
+  return Math.round(Number(amount || 0) * (zeroDecimalCurrencies.has(currency) ? 1 : 100));
 }
 
 function isEnabled(value) {
@@ -49,6 +99,29 @@ function normalizePaymentMethod(value) {
   }
 
   return paymentMethod;
+}
+
+function parseScannedParkingId(value) {
+  const raw = cleanString(value);
+
+  if (!raw) {
+    return undefined;
+  }
+
+  if (/^[a-f\d]{24}$/i.test(raw)) {
+    return raw;
+  }
+
+  try {
+    const decoded = JSON.parse(raw);
+    if (decoded && typeof decoded === "object" && decoded.type === "parkealo_host_parking") {
+      return cleanString(decoded.parkingId);
+    }
+  } catch (_) {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 function extractCardLast4(body) {
@@ -134,6 +207,21 @@ function buildQrPayload(booking) {
   });
 }
 
+function occupyFirstAvailableSpace(parking) {
+  const allSpaces = parking.sections?.length
+    ? parking.sections.flatMap((section) => section.spaces || [])
+    : parking.spaceIdentifiers || [];
+  const occupied = new Set((parking.occupancy?.occupiedSpaces || []).map(String));
+  const nextSpace = allSpaces.map(String).find((space) => !occupied.has(space));
+
+  if (!nextSpace) return;
+
+  parking.occupancy = {
+    ...(parking.occupancy?.toObject ? parking.occupancy.toObject() : parking.occupancy || {}),
+    occupiedSpaces: [...occupied, nextSpace],
+  };
+}
+
 async function findActiveParking(value) {
   const parkingId = cleanString(value);
 
@@ -153,7 +241,67 @@ async function findActiveParking(value) {
   return parking;
 }
 
-function buildPayment(body, pricing) {
+function extractPaymentIntentId(body) {
+  const rawId =
+    cleanString(body.paymentIntentId) ||
+    cleanString(body.stripePaymentIntentId) ||
+    cleanString(body.payment && (body.payment.paymentIntentId || body.payment.stripePaymentIntentId));
+
+  if (rawId) {
+    return rawId;
+  }
+
+  const clientSecret = cleanString(body.paymentIntentClientSecret || (body.payment && body.payment.clientSecret));
+  return clientSecret && clientSecret.includes("_secret_") ? clientSecret.split("_secret_")[0] : undefined;
+}
+
+async function verifyStripePayment(body, quote, userId) {
+  const paymentIntentId = extractPaymentIntentId(body);
+
+  if (!paymentIntentId) {
+    throw new HttpError(400, "Stripe payment intent is required for card payments");
+  }
+
+  const currency = getStripeCurrency(quote.pricing);
+  const expectedAmount = toStripeAmount(quote.pricing.total, currency);
+  const stripe = getStripeClient();
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId, {
+    expand: ["latest_charge.payment_method_details"],
+  });
+
+  if (paymentIntent.status !== "succeeded") {
+    throw new HttpError(402, "Card payment was not completed");
+  }
+
+  if (paymentIntent.amount !== expectedAmount || paymentIntent.currency !== currency) {
+    throw new HttpError(400, "Stripe payment amount does not match this booking");
+  }
+
+  if (paymentIntent.metadata?.userId && paymentIntent.metadata.userId !== userId.toString()) {
+    throw new HttpError(403, "Stripe payment does not belong to this user");
+  }
+
+  if (paymentIntent.metadata?.parkingId && paymentIntent.metadata.parkingId !== quote.parking._id.toString()) {
+    throw new HttpError(400, "Stripe payment does not belong to this parking");
+  }
+
+  const charge = paymentIntent.latest_charge && typeof paymentIntent.latest_charge === "object"
+    ? paymentIntent.latest_charge
+    : undefined;
+  const card = charge?.payment_method_details?.card;
+
+  return {
+    provider: "stripe",
+    stripePaymentIntentId: paymentIntent.id,
+    stripeChargeId: charge?.id,
+    cardBrand: card?.brand,
+    cardLast4: card?.last4 || extractCardLast4(body),
+    chargedAmount: quote.pricing.total,
+    currency: quote.pricing.currency,
+  };
+}
+
+async function buildPayment(body, pricing, quote, userId) {
   const method = normalizePaymentMethod(body.paymentMethod || (body.payment && body.payment.method));
 
   if (!["card", "cash"].includes(method)) {
@@ -167,13 +315,7 @@ function buildPayment(body, pricing) {
   };
 
   if (method === "card") {
-    const cardLast4 = extractCardLast4(body);
-
-    if (!cardLast4) {
-      throw new HttpError(400, "Card last four digits are required");
-    }
-
-    payment.cardLast4 = cardLast4;
+    Object.assign(payment, await verifyStripePayment(body, quote, userId));
   }
 
   pricing.paidTotal = method === "cash" ? 0 : pricing.total;
@@ -360,6 +502,42 @@ const safetyCheck = asyncHandler(async (req, res) => {
   });
 });
 
+const createPaymentIntent = asyncHandler(async (req, res) => {
+  const quote = await buildQuoteFromRequest(req.body);
+  const currency = getStripeCurrency(quote.pricing);
+  const amount = toStripeAmount(quote.pricing.total, currency);
+  const publishableKey = getStripePublishableKey();
+
+  if (!publishableKey) {
+    throw new HttpError(503, "Stripe publishable key is not configured on the server");
+  }
+
+  const paymentIntent = await getStripeClient().paymentIntents.create({
+    amount,
+    currency,
+    automatic_payment_methods: { enabled: true },
+    metadata: {
+      userId: req.user._id.toString(),
+      parkingId: quote.parking._id.toString(),
+      date: quote.date,
+      arrivalTime: quote.arrivalTime,
+      durationHours: String(quote.durationHours),
+      insuranceIncluded: String(quote.insuranceIncluded),
+    },
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Stripe payment intent created",
+    publishableKey,
+    paymentIntentId: paymentIntent.id,
+    clientSecret: paymentIntent.client_secret,
+    amount,
+    currency: currency.toUpperCase(),
+    quote: presentQuote(quote),
+  });
+});
+
 const createBooking = asyncHandler(async (req, res) => {
   const quote = await buildQuoteFromRequest(req.body);
   const vehiclePlate = normalizeVehiclePlate(req.body.vehiclePlate) || req.user.vehiclePlate;
@@ -373,7 +551,7 @@ const createBooking = asyncHandler(async (req, res) => {
     throw new HttpError(400, "Safety notice must be acknowledged before booking");
   }
 
-  const payment = buildPayment(req.body, quote.pricing);
+  const payment = await buildPayment(req.body, quote.pricing, quote, req.user._id);
   const status = quote.parking.approvalMode === "host_approval" ? "pending_host_approval" : "pending_checkin";
   let reservedParking = null;
 
@@ -391,6 +569,9 @@ const createBooking = asyncHandler(async (req, res) => {
     if (!reservedParking) {
       throw new HttpError(409, "No parking spaces are currently available");
     }
+
+    occupyFirstAvailableSpace(reservedParking);
+    await reservedParking.save();
   }
 
   try {
@@ -514,6 +695,7 @@ const notifyHost = asyncHandler(async (req, res) => {
 const checkInBooking = asyncHandler(async (req, res) => {
   const booking = await findOwnedBooking(req.user._id, req.params.id);
   const confirmationCode = cleanString(req.body.confirmationCode);
+  const scannedParkingId = parseScannedParkingId(req.body.qrPayload || req.body.scannedCode || req.body.parkingQr);
 
   if (booking.status !== "pending_checkin") {
     throw new HttpError(400, "Booking is not ready for check-in");
@@ -521,6 +703,14 @@ const checkInBooking = asyncHandler(async (req, res) => {
 
   if (confirmationCode && confirmationCode.toUpperCase() !== booking.confirmationCode) {
     throw new HttpError(400, "Invalid check-in code");
+  }
+
+  if (!scannedParkingId) {
+    throw new HttpError(400, "Parking QR code is required for check-in");
+  }
+
+  if (scannedParkingId !== booking.parking.toString()) {
+    throw new HttpError(400, "This QR code does not match your booking parking");
   }
 
   booking.status = "in_progress";
@@ -676,7 +866,19 @@ const checkOutBooking = asyncHandler(async (req, res) => {
   booking.status = "completed";
   booking.checkedOutAt = new Date();
   await booking.save();
-  await Parking.updateOne({ _id: booking.parking }, { $inc: { "availability.availableSpaces": 1 } });
+  const parking = await Parking.findById(booking.parking);
+  if (parking) {
+    const occupied = (parking.occupancy?.occupiedSpaces || []).map(String);
+    parking.occupancy = {
+      ...(parking.occupancy?.toObject ? parking.occupancy.toObject() : parking.occupancy || {}),
+      occupiedSpaces: occupied.slice(1),
+    };
+    parking.availability.availableSpaces = Math.min(
+      (parking.availability.availableSpaces || 0) + 1,
+      parking.availability.totalSpaces || occupied.length,
+    );
+    await parking.save();
+  }
 
   res.json({
     success: true,
@@ -737,6 +939,7 @@ module.exports = {
   checkInBooking,
   checkOutBooking,
   createBooking,
+  createPaymentIntent,
   extendBooking,
   getBooking,
   getDirections,

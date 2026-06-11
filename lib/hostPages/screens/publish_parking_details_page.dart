@@ -9,7 +9,10 @@ class PublishParkingDetailsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = Get.put(PublishParkingDetailsController());
+    final controller = Get.put(
+      PublishParkingDetailsController(),
+      permanent: true,
+    );
 
     return Obx(
       () => PublishFlowScaffold(
@@ -49,6 +52,31 @@ class PublishParkingDetailsPage extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 18),
+              const PublishFieldLabel('RESERVATION MODE'),
+              const SizedBox(height: 9),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ScheduleButton(
+                      icon: Icons.flash_on_rounded,
+                      label: 'Automatic',
+                      selected: controller.approvalMode.value == 'automatic',
+                      onTap: () => controller.setApprovalMode('automatic'),
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: _ScheduleButton(
+                      icon: Icons.verified_user_rounded,
+                      label: 'Host approval',
+                      selected:
+                          controller.approvalMode.value == 'host_approval',
+                      onTap: () => controller.setApprovalMode('host_approval'),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 18),
               const PublishFieldLabel('NUMBER OF SPACES *'),

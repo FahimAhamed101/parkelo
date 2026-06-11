@@ -1,18 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
-import '../services/host_publish_flow_service.dart';
+import '../controllers/publish_parking_services_controller.dart';
 import '../widgets/publish_parking_flow.dart';
 
-class PublishParkingServicesPage extends StatefulWidget {
+class PublishParkingServicesPage extends StatelessWidget {
   const PublishParkingServicesPage({super.key});
 
-  @override
-  State<PublishParkingServicesPage> createState() =>
-      _PublishParkingServicesPageState();
-}
-
-class _PublishParkingServicesPageState
-    extends State<PublishParkingServicesPage> {
   static const _serviceOptions = <_ServiceOption>[
     _ServiceOption(Icons.house_rounded, 'Covered', 'covered'),
     _ServiceOption(Icons.videocam_rounded, 'Cameras', 'cameras'),
@@ -32,117 +26,82 @@ class _PublishParkingServicesPageState
     _ServiceOption(Icons.wc_rounded, 'Restrooms', 'bathrooms'),
   ];
 
-  late final Map<String, bool> _selected;
-  bool _saving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    final services =
-        (HostPublishFlowService.instance.parking?['services']
-                    as List<dynamic>? ??
-                const [])
-            .map((item) => item is Map<String, dynamic> ? item['code'] : item)
-            .whereType<String>()
-            .toSet();
-    _selected = {
-      for (final option in _serviceOptions)
-        option.key: services.contains(option.key),
-    };
-  }
-
   @override
   Widget build(BuildContext context) {
-    return PublishFlowScaffold(
-      currentStep: 3,
-      stepTitle: 'Services',
-      showBackAction: true,
-      onContinue: _saving ? () {} : _submit,
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(9, 20, 9, 24),
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(16, 17, 16, 16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: const Color(0xFFE2EAF5)),
-            boxShadow: [
-              BoxShadow(
-                color: PublishFlowColors.blue.withValues(alpha: 0.06),
-                blurRadius: 20,
-                offset: const Offset(0, 7),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'What services does your parking offer?',
-                style: TextStyle(
-                  color: PublishFlowColors.ink,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w900,
-                  height: 1.15,
+    final controller = Get.put(PublishParkingServicesController());
+
+    return Obx(
+      () => PublishFlowScaffold(
+        currentStep: 3,
+        stepTitle: 'Services',
+        showBackAction: true,
+        onContinue: controller.isSaving.value ? () {} : controller.submit,
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(9, 20, 9, 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(16, 17, 16, 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(color: const Color(0xFFE2EAF5)),
+              boxShadow: [
+                BoxShadow(
+                  color: PublishFlowColors.blue.withValues(alpha: 0.06),
+                  blurRadius: 20,
+                  offset: const Offset(0, 7),
                 ),
-              ),
-              const SizedBox(height: 13),
-              const Text(
-                'Select all that apply. You can edit them later.',
-                style: TextStyle(
-                  color: PublishFlowColors.muted,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  height: 1.35,
-                ),
-              ),
-              const SizedBox(height: 19),
-              for (var i = 0; i < _serviceOptions.length; i++) ...[
-                _ServiceRow(
-                  option: _serviceOptions[i],
-                  value: _selected[_serviceOptions[i].key] ?? false,
-                  onChanged: (value) {
-                    setState(() {
-                      _selected[_serviceOptions[i].key] = value;
-                    });
-                  },
-                ),
-                if (i != _serviceOptions.length - 1)
-                  const Divider(
-                    height: 1,
-                    thickness: 1,
-                    color: Color(0xFFDDE6F1),
-                    indent: 52,
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'What services does your parking offer?',
+                  style: TextStyle(
+                    color: PublishFlowColors.ink,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                    height: 1.15,
                   ),
+                ),
+                const SizedBox(height: 13),
+                const Text(
+                  'Select all that apply. You can edit them later.',
+                  style: TextStyle(
+                    color: PublishFlowColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    height: 1.35,
+                  ),
+                ),
+                const SizedBox(height: 19),
+                for (var i = 0; i < _serviceOptions.length; i++) ...[
+                  _ServiceRow(
+                    option: _serviceOptions[i],
+                    value: controller.isSelected(_serviceOptions[i].key),
+                    onChanged: (value) {
+                      controller.setSelected(_serviceOptions[i].key, value);
+                    },
+                  ),
+                  if (i != _serviceOptions.length - 1)
+                    const Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFDDE6F1),
+                      indent: 52,
+                    ),
+                ],
+                if (controller.isSaving.value) ...[
+                  const SizedBox(height: 16),
+                  const Center(child: CircularProgressIndicator()),
+                ],
               ],
-              if (_saving) ...[
-                const SizedBox(height: 16),
-                const Center(child: CircularProgressIndicator()),
-              ],
-            ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _submit() async {
-    setState(() => _saving = true);
-    try {
-      await HostPublishFlowService.instance.saveServices({
-        'services': _selected,
-      });
-
-      if (!mounted) return;
-      Navigator.pushNamed(context, '/publish-parking-photos');
-    } catch (error) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(error.toString())));
-    } finally {
-      if (mounted) setState(() => _saving = false);
-    }
   }
 }
 

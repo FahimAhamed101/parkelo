@@ -34,6 +34,31 @@ const paymentSchema = new mongoose.Schema(
       trim: true,
       maxlength: 4,
     },
+    provider: {
+      type: String,
+      enum: ["stripe"],
+    },
+    stripePaymentIntentId: {
+      type: String,
+      trim: true,
+    },
+    stripeChargeId: {
+      type: String,
+      trim: true,
+    },
+    cardBrand: {
+      type: String,
+      trim: true,
+    },
+    chargedAmount: {
+      type: Number,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
     paidAt: Date,
   },
   { _id: false },

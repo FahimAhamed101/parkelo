@@ -13,7 +13,6 @@ class PublishParkingSubmittedPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final notice = HostPublishFlowService.instance.submitNotice ?? const {};
     final parking = HostPublishFlowService.instance.parking ?? const {};
-    final reviewHours = notice['estimatedReviewHours'] ?? 2;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark.copyWith(
@@ -39,7 +38,7 @@ class PublishParkingSubmittedPage extends StatelessWidget {
                       const _SuccessIcon(),
                       const SizedBox(height: 29),
                       Text(
-                        notice['title'] as String? ?? 'Request submitted!',
+                        notice['title'] as String? ?? 'Parking published!',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: PublishFlowColors.ink,
@@ -51,7 +50,7 @@ class PublishParkingSubmittedPage extends StatelessWidget {
                       const SizedBox(height: 14),
                       Text(
                         notice['message'] as String? ??
-                            '${parking['name'] ?? 'Your parking'} is being reviewed by the Parkealo team.',
+                            '${parking['name'] ?? 'Your parking'} is live and ready for bookings.',
                         textAlign: TextAlign.center,
                         style: const TextStyle(
                           color: PublishFlowColors.muted,
@@ -61,7 +60,7 @@ class PublishParkingSubmittedPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 15),
-                      _ReviewNotice(reviewHours: reviewHours),
+                      const _ReviewNotice(),
                       const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
@@ -81,7 +80,7 @@ class PublishParkingSubmittedPage extends StatelessWidget {
                           ),
                           child: Text(
                             notice['actionLabel'] as String? ??
-                                'Go to admin panel',
+                                'Go to host panel',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 16,
@@ -134,9 +133,7 @@ class _SuccessIcon extends StatelessWidget {
 }
 
 class _ReviewNotice extends StatelessWidget {
-  const _ReviewNotice({required this.reviewHours});
-
-  final Object reviewHours;
+  const _ReviewNotice();
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +146,7 @@ class _ReviewNotice extends StatelessWidget {
         border: Border.all(color: const Color(0xFFF0D080)),
       ),
       child: Text(
-        'Under review - It will be visible on the map in about $reviewHours hours',
+        'Visible on the map now - Drivers can reserve it from the explore page',
         textAlign: TextAlign.center,
         style: const TextStyle(
           color: Color(0xFF8A6200),

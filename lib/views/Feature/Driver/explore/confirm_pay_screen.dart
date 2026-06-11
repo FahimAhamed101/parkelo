@@ -1,9 +1,15 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart' as stripe;
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
+import '../../Authentication/controllers/auth_controller.dart';
+import '../../Authentication/services/auth_api_service.dart';
 import '../../../base/AppText/appText.dart';
 import 'booking_flow_models.dart';
 import 'widgets/driver_flow_nav_bar.dart';
@@ -18,25 +24,13 @@ class ConfirmPayScreen extends StatefulWidget {
 class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
   late BookingDraft _draft;
   int _selectedPaymentMethod = 0;
-  final TextEditingController _cardNumberController = TextEditingController();
-  final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _expiryController = TextEditingController();
-  final TextEditingController _cvvController = TextEditingController();
+  bool _submitting = false;
 
   @override
   void initState() {
     super.initState();
     final args = Get.arguments;
     _draft = BookingDraft.fromMap(args is Map<String, dynamic> ? args : null);
-  }
-
-  @override
-  void dispose() {
-    _cardNumberController.dispose();
-    _nameController.dispose();
-    _expiryController.dispose();
-    _cvvController.dispose();
-    super.dispose();
   }
 
   @override
@@ -90,60 +84,7 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                   _paymentOption(1, 'Cash on arrival'),
                   if (_selectedPaymentMethod == 0) ...[
                     const SizedBox(height: 14),
-                    _Card(
-                      child: Column(
-                        children: [
-                          _inputLabel('Card number'),
-                          const SizedBox(height: 6),
-                          _textField(
-                            controller: _cardNumberController,
-                            hint: '**** **** **** ****',
-                            keyboardType: TextInputType.number,
-                          ),
-                          const SizedBox(height: 12),
-                          _inputLabel('Name on card'),
-                          const SizedBox(height: 6),
-                          _textField(
-                            controller: _nameController,
-                            hint: 'NAME SURNAME',
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _inputLabel('Expiration'),
-                                    const SizedBox(height: 6),
-                                    _textField(
-                                      controller: _expiryController,
-                                      hint: 'MM/AA',
-                                      keyboardType: TextInputType.datetime,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _inputLabel('CVV'),
-                                    const SizedBox(height: 6),
-                                    _textField(
-                                      controller: _cvvController,
-                                      hint: '***',
-                                      keyboardType: TextInputType.number,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                    _StripeNotice(total: _draft.total),
                   ],
                   const SizedBox(height: 14),
                   _Card(
@@ -191,7 +132,7 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                   ),
                   const SizedBox(height: 18),
                   GestureDetector(
-                    onTap: _confirmReservation,
+                    onTap: _submitting ? null : _confirmReservation,
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(vertical: 16),
@@ -200,12 +141,21 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       alignment: Alignment.center,
-                      child: AppText(
-                        'Confirm reservation',
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                      ),
+                      child: _submitting
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : AppText(
+                              'Confirm reservation',
+                              fontSize: 16,
+                              fontWeight: FontWeight.w900,
+                              color: Colors.white,
+                            ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -227,8 +177,121 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
     );
   }
 
-  void _confirmReservation() {
-    Get.toNamed(AppRoutes.bookingConfirmedScreen, arguments: _draft.toMap());
+  Future<void> _confirmReservation() async {
+    final parkingId = _draft.parkingId;
+    if (parkingId == null || parkingId.isEmpty) {
+      _showError('Parking id is missing. Please reopen the parking details.');
+      return;
+    }
+
+    final token = AuthController.instance.token.value;
+    if (token == null || token.isEmpty) {
+      _showError('Please sign in before confirming a reservation.');
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final isCard = _selectedPaymentMethod == 0;
+      final paymentIntentId = isCard
+          ? await _confirmStripePayment(token)
+          : null;
+      final response = await http.post(
+        Uri.parse('${AuthApiService.baseUrl}/api/bookings'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(_bookingPayload(paymentIntentId: paymentIntentId)),
+      );
+      final decoded = response.body.isEmpty
+          ? <String, dynamic>{}
+          : jsonDecode(response.body);
+      if (response.statusCode >= 400) {
+        final message = decoded is Map<String, dynamic>
+            ? decoded['message']?.toString() ?? 'Booking failed'
+            : 'Booking failed';
+        throw Exception(message);
+      }
+      if (!mounted) return;
+      Get.toNamed(AppRoutes.bookingConfirmedScreen, arguments: _draft.toMap());
+    } on stripe.StripeException catch (error) {
+      final message = error.error.localizedMessage;
+      _showError(message?.isNotEmpty == true ? message! : 'Payment cancelled');
+    } catch (error) {
+      _showError(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Map<String, dynamic> _bookingPayload({String? paymentIntentId}) {
+    return {
+      'parkingId': _draft.parkingId,
+      'date': _draft.toMap()['date'],
+      'arrivalTime': _draft.arrivalTime,
+      'durationHours': _draft.durationHours,
+      'insuranceIncluded': _draft.insuranceEnabled,
+      'vehiclePlate': _draft.vehiclePlate,
+      'bookForOther': _draft.bookForAnotherPerson,
+      'paymentMethod': _selectedPaymentMethod == 0 ? 'card' : 'cash',
+      if (paymentIntentId != null) 'paymentIntentId': paymentIntentId,
+    };
+  }
+
+  Future<String> _confirmStripePayment(String token) async {
+    final response = await http.post(
+      Uri.parse('${AuthApiService.baseUrl}/api/bookings/payment-intent'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode(_bookingPayload()),
+    );
+    final decoded = response.body.isEmpty
+        ? <String, dynamic>{}
+        : jsonDecode(response.body);
+    if (response.statusCode >= 400) {
+      final message = decoded is Map<String, dynamic>
+          ? decoded['message']?.toString() ?? 'Payment setup failed'
+          : 'Payment setup failed';
+      throw Exception(message);
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('Payment setup failed');
+    }
+
+    final publishableKey = decoded['publishableKey']?.toString();
+    final clientSecret = decoded['clientSecret']?.toString();
+    final paymentIntentId = decoded['paymentIntentId']?.toString();
+    if (publishableKey == null || publishableKey.isEmpty) {
+      throw Exception('Stripe publishable key is missing from the backend');
+    }
+    if (clientSecret == null || clientSecret.isEmpty) {
+      throw Exception('Stripe client secret is missing from the backend');
+    }
+    if (paymentIntentId == null || paymentIntentId.isEmpty) {
+      throw Exception('Stripe payment intent id is missing from the backend');
+    }
+
+    stripe.Stripe.publishableKey = publishableKey;
+    await stripe.Stripe.instance.applySettings();
+    await stripe.Stripe.instance.initPaymentSheet(
+      paymentSheetParameters: stripe.SetupPaymentSheetParameters(
+        paymentIntentClientSecret: clientSecret,
+        merchantDisplayName: 'Parkealo',
+        style: ThemeMode.light,
+      ),
+    );
+    await stripe.Stripe.instance.presentPaymentSheet();
+
+    return paymentIntentId;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _paymentOption(int index, String label) {
@@ -276,52 +339,52 @@ class _ConfirmPayScreenState extends State<ConfirmPayScreen> {
     );
   }
 
-  Widget _inputLabel(String label) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: AppText(
-        label,
-        fontSize: 11,
-        fontWeight: FontWeight.w800,
-        color: AppColors.textSub,
-      ),
-    );
-  }
+}
 
-  Widget _textField({
-    required TextEditingController controller,
-    required String hint,
-    TextInputType? keyboardType,
-  }) {
-    return TextField(
-      controller: controller,
-      keyboardType: keyboardType,
-      style: GoogleFonts.nunito(
-        fontSize: 13,
-        fontWeight: FontWeight.w800,
-        color: AppColors.text,
-      ),
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: GoogleFonts.nunito(
-          fontSize: 13,
-          fontWeight: FontWeight.w800,
-          color: AppColors.textFaint,
-        ),
-        filled: true,
-        fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 14,
-          vertical: 12,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.blue),
-        ),
+class _StripeNotice extends StatelessWidget {
+  final int total;
+
+  const _StripeNotice({required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return _Card(
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.blue.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.credit_card_rounded,
+              color: AppColors.blue,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AppText(
+                  'Secure Stripe checkout',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+                const SizedBox(height: 4),
+                AppText(
+                  'Card details are entered in Stripe. Total RD\$$total.',
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textSub,
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,9 +1,13 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 import '../../../../helpers/route.dart';
 import '../../../../utils/appColor/app_colors.dart';
+import '../../Authentication/services/auth_api_service.dart';
 import '../../../base/AppText/appText.dart';
 import 'booking_flow_models.dart';
 import 'widgets/driver_flow_nav_bar.dart';
@@ -16,16 +20,9 @@ class ParkingDetailsScreen extends StatefulWidget {
 }
 
 class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
-  static const List<String> _arrivalTimes = [
-    '7:00 AM',
-    '7:30 AM',
-    '8:00 AM',
-    '8:30 AM',
-  ];
-  static const List<int> _durations = [1, 2, 4, 6, 8, 12];
-
   late BookingDraft _draft;
   late bool _fromFavorites;
+  bool _loadingDetails = false;
 
   @override
   void initState() {
@@ -34,6 +31,40 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     _fromFavorites =
         args is Map<String, dynamic> && args['fromFavorites'] == true;
     _draft = BookingDraft.fromMap(args is Map<String, dynamic> ? args : null);
+    _loadParkingDetails();
+  }
+
+  Future<void> _loadParkingDetails() async {
+    final parkingId = _draft.parkingId;
+    if (parkingId == null || parkingId.isEmpty) return;
+
+    setState(() => _loadingDetails = true);
+    try {
+      final response = await http.get(
+        Uri.parse('${AuthApiService.baseUrl}/api/parkings/$parkingId'),
+      );
+      if (response.statusCode >= 400) return;
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic>) return;
+      final parking = decoded['parking'];
+      if (parking is! Map<String, dynamic>) return;
+      final current = _draft.toMap();
+      final fresh = BookingDraft.fromApiParking(parking);
+      if (!mounted) return;
+      setState(() {
+        _draft = BookingDraft.fromMap({
+          ...fresh,
+          'date': current['date'],
+          'arrivalTime': current['arrivalTime'],
+          'durationHours': current['durationHours'],
+          'bookForAnotherPerson': current['bookForAnotherPerson'],
+          'insuranceEnabled': current['insuranceEnabled'],
+          'vehiclePlate': current['vehiclePlate'],
+        });
+      });
+    } finally {
+      if (mounted) setState(() => _loadingDetails = false);
+    }
   }
 
   bool get _isToday {
@@ -85,10 +116,22 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeaderInfo(),
+                  if (_loadingDetails) ...[
+                    const SizedBox(height: 10),
+                    const LinearProgressIndicator(minHeight: 2),
+                  ],
                   const SizedBox(height: 14),
                   _buildManagedByCard(),
                   const SizedBox(height: 14),
                   _buildAvailableService(),
+                  const SizedBox(height: 14),
+                  _buildPublishedDetails(),
+                  const SizedBox(height: 14),
+                  _buildSpacesAndPricing(),
+                  if (_draft.photos.isNotEmpty) ...[
+                    const SizedBox(height: 14),
+                    _buildGallery(),
+                  ],
                   const SizedBox(height: 20),
                   AppText(
                     'When are you arriving?',
@@ -182,6 +225,22 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
             ],
           ),
         ),
+        if (_draft.photos.isNotEmpty)
+          Positioned.fill(
+            child: Image.network(
+              _draft.photos.first,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        if (_draft.photos.isNotEmpty)
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.blueNav.withValues(alpha: 0.56),
+              ),
+            ),
+          ),
         Positioned(
           top: MediaQuery.of(context).padding.top + 10,
           left: 14,
@@ -231,9 +290,14 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
         const SizedBox(height: 12),
         Row(
           children: [
-            _buildTag('Public', AppColors.greenLt, AppColors.green),
+            _buildTag(
+              _draft.parkingType == 'private' ? 'Private' : 'Public',
+              AppColors.greenLt,
+              AppColors.green,
+            ),
             const SizedBox(width: 8),
-            _buildTag('24/7', AppColors.blueLt, AppColors.blue),
+            if (_draft.serviceCodes.contains('open_24_7'))
+              _buildTag('24/7', AppColors.blueLt, AppColors.blue),
           ],
         ),
       ],
@@ -282,7 +346,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AppText(
-                  'Managed by Parkealo',
+                  'Managed by ${_draft.hostName}',
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                 ),
@@ -325,6 +389,9 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
   }
 
   Widget _buildAvailableService() {
+    final activeServices = _draft.services.isEmpty
+        ? const ['Covered', 'EV charging', 'Cameras', 'Valet', '24/7']
+        : _draft.services;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -335,41 +402,169 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          AppText(
+        children: [
+          const AppText(
             'Available services',
             fontSize: 14,
             fontWeight: FontWeight.w900,
           ),
-          SizedBox(height: 14),
+          const SizedBox(height: 14),
           Wrap(
             spacing: 8,
             runSpacing: 8,
+            children: activeServices
+                .map(
+                  (service) => _ServicePill(
+                    icon: _serviceIcon(service),
+                    label: _serviceLabel(service),
+                    muted:
+                        service.toLowerCase() == 'private' &&
+                        _draft.parkingType != 'private',
+                  ),
+                )
+                .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPublishedDetails() {
+    return _InfoCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText('Parking details', fontSize: 14, fontWeight: FontWeight.w900),
+          const SizedBox(height: 12),
+          if (_draft.description.isNotEmpty)
+            _DetailText(icon: Icons.notes_rounded, text: _draft.description),
+          if (_draft.rules.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DetailText(icon: Icons.rule_rounded, text: _draft.rules),
+          ],
+          if (_draft.addressLine.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            _DetailText(
+              icon: Icons.location_on_outlined,
+              text: _draft.addressLine,
+            ),
+          ],
+          if (_draft.contactPhone.isNotEmpty ||
+              _draft.instagram.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                if (_draft.contactPhone.isNotEmpty)
+                  _SmallInfoPill(
+                    icon: Icons.call_outlined,
+                    label: _draft.contactPhone,
+                  ),
+                if (_draft.instagram.isNotEmpty)
+                  _SmallInfoPill(
+                    icon: Icons.alternate_email_rounded,
+                    label: _draft.instagram,
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpacesAndPricing() {
+    return _InfoCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AppText(
+            'Spaces & pricing',
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+          const SizedBox(height: 12),
+          Row(
             children: [
-              _ServicePill(icon: Icons.roofing_outlined, label: 'Covered'),
-              _ServicePill(
-                icon: Icons.electric_car_outlined,
-                label: 'Charge EV',
+              Expanded(
+                child: _MetricTile(
+                  label: 'Spaces',
+                  value: '${_draft.availableSpaces}/${_draft.totalSpaces}',
+                ),
               ),
-              _ServicePill(icon: Icons.videocam_outlined, label: 'Cameras'),
-              _ServicePill(icon: Icons.security_outlined, label: 'Valet'),
-              _ServicePill(icon: Icons.access_time_rounded, label: '24/7'),
-              _ServicePill(
-                icon: Icons.lock_outline_rounded,
-                label: 'Ctrl. access',
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(label: 'Levels', value: '${_draft.floors}'),
               ),
-              _ServicePill(
-                icon: Icons.person_outline_rounded,
-                label: 'Personal',
-              ),
-              _ServicePill(
-                icon: Icons.block_outlined,
-                label: 'Private',
-                muted: true,
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MetricTile(
+                  label: 'Daily',
+                  value: 'RD\$${_draft.pricePerDay}',
+                ),
               ),
             ],
           ),
+          if (_draft.spaceIdentifiers.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _draft.spaceIdentifiers
+                  .take(12)
+                  .map((space) => _SpaceChip(label: space))
+                  .toList(),
+            ),
+          ],
+          if (_draft.pricingSections.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final section in _draft.pricingSections.take(2))
+              _PricingSectionRow(section: section),
+          ],
+          const SizedBox(height: 12),
+          _DetailText(
+            icon: Icons.trending_up_rounded,
+            text: _draft.dynamicPricingEnabled
+                ? 'Dynamic pricing after ${_draft.dynamicPricingThreshold}% occupancy (+${_draft.dynamicPricingIncrease}%).'
+                : 'Dynamic pricing disabled.',
+          ),
+          const SizedBox(height: 10),
+          _DetailText(
+            icon: Icons.more_time_rounded,
+            text:
+                'Overtime ${_draft.overtimeMultiplier.toStringAsFixed(1)}x after ${_draft.overtimeGraceMinutes} min grace.',
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildGallery() {
+    final photos = _draft.photos.take(3).toList();
+    return SizedBox(
+      height: 76,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: photos.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.network(
+              photos[index],
+              width: 112,
+              height: 76,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                width: 112,
+                height: 76,
+                color: AppColors.blueLt,
+                child: const Icon(Icons.image_outlined, color: AppColors.blue),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -432,7 +627,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: _arrivalTimes.map((time) {
+      children: _draft.arrivalTimes.map((time) {
         final isSelected = _draft.arrivalTime == time;
         return GestureDetector(
           onTap: () {
@@ -468,9 +663,9 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
     return Wrap(
       spacing: 8,
       runSpacing: 8,
-      children: _durations.map((duration) {
+      children: _draft.durationOptions.map((duration) {
         final isSelected = _draft.durationHours == duration;
-        final label = duration == 12 ? 'All day' : '${duration}h';
+        final label = duration == 24 ? 'All day' : '${duration}h';
         return GestureDetector(
           onTap: () {
             setState(() {
@@ -517,7 +712,7 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
         ),
         const SizedBox(height: 16),
         _buildSwitchRow(
-          'Insurance - RD\$25',
+          'Insurance - RD\$${_draft.insuranceFeeValue}',
           'Protects up to RD\$3,000 in vehicle damages during the reservation.',
           _draft.insuranceEnabled,
           (value) {
@@ -815,6 +1010,211 @@ class _ParkingDetailsScreenState extends State<ParkingDetailsScreen> {
       fontSize: 11,
       fontWeight: FontWeight.w900,
       color: AppColors.textSub,
+    );
+  }
+
+  IconData _serviceIcon(String service) {
+    final value = service.toLowerCase();
+    if (value.contains('covered')) return Icons.roofing_outlined;
+    if (value.contains('ev') || value.contains('charging')) {
+      return Icons.electric_car_outlined;
+    }
+    if (value.contains('camera')) return Icons.videocam_outlined;
+    if (value.contains('valet')) return Icons.security_outlined;
+    if (value.contains('24')) return Icons.access_time_rounded;
+    if (value.contains('access')) return Icons.lock_outline_rounded;
+    if (value.contains('staff') || value.contains('person')) {
+      return Icons.person_outline_rounded;
+    }
+    if (value.contains('wi')) return Icons.wifi_rounded;
+    if (value.contains('accessible')) return Icons.accessible_rounded;
+    if (value.contains('motor')) return Icons.two_wheeler_rounded;
+    if (value.contains('bath') || value.contains('restroom')) {
+      return Icons.wc_rounded;
+    }
+    if (value.contains('private')) return Icons.home_work_outlined;
+    return Icons.check_circle_outline_rounded;
+  }
+
+  String _serviceLabel(String service) {
+    if (service == 'EV charging') return 'EV charging';
+    if (service == 'Controlled access') return 'Access control';
+    if (service == 'Staff') return 'Personnel';
+    if (service == 'Bathrooms') return 'Restrooms';
+    return service;
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+        boxShadow: AppColors.shadow,
+      ),
+      child: child,
+    );
+  }
+}
+
+class _DetailText extends StatelessWidget {
+  const _DetailText({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 16, color: AppColors.blue),
+        const SizedBox(width: 8),
+        Expanded(
+          child: AppText(
+            text,
+            fontSize: 11,
+            color: AppColors.textSub,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SmallInfoPill extends StatelessWidget {
+  const _SmallInfoPill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+      decoration: BoxDecoration(
+        color: AppColors.blueLt,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.blueMid),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: AppColors.blue),
+          const SizedBox(width: 6),
+          AppText(
+            label,
+            fontSize: 11,
+            color: AppColors.blue,
+            fontWeight: FontWeight.w800,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MetricTile extends StatelessWidget {
+  const _MetricTile({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          AppText(
+            value,
+            fontSize: 13,
+            color: AppColors.text,
+            fontWeight: FontWeight.w900,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 3),
+          AppText(
+            label,
+            fontSize: 9,
+            color: AppColors.textSub,
+            fontWeight: FontWeight.w800,
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpaceChip extends StatelessWidget {
+  const _SpaceChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.greenLt,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: AppColors.greenMid),
+      ),
+      child: AppText(
+        label,
+        fontSize: 10,
+        color: AppColors.green,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+}
+
+class _PricingSectionRow extends StatelessWidget {
+  const _PricingSectionRow({required this.section});
+
+  final PricingSectionDraft section;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: AppText(
+              '${section.name} - ${section.spaces.length} spaces',
+              fontSize: 11,
+              color: AppColors.textSub,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          AppText(
+            'RD\$${section.hourly}/h',
+            fontSize: 11,
+            color: AppColors.text,
+            fontWeight: FontWeight.w900,
+          ),
+        ],
+      ),
     );
   }
 }
