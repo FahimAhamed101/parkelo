@@ -158,7 +158,16 @@ const listParkings = asyncHandler(async (req, res) => {
 
   if (search) {
     const regex = new RegExp(escapeRegex(search), "i");
-    filter.$or = [{ name: regex }, { zone: regex }, { "address.city": regex }];
+    filter.$or = [
+      { name: regex },
+      { zone: regex },
+      { sector: regex },
+      { description: regex },
+      { "address.line1": regex },
+      { "address.city": regex },
+      { "services.label": regex },
+      { "services.code": regex },
+    ];
   }
 
   if (accessType) {

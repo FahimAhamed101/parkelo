@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const User = require("../models/User");
 
 async function connectDb() {
   const mongoUri = process.env.MONGODB_URI;
@@ -15,6 +16,9 @@ async function connectDb() {
   });
 
   console.log(`MongoDB connected${dbName ? ` to ${dbName}` : ""}`);
+
+  await User.syncIndexes();
+  console.log("User indexes synchronized");
 }
 
 module.exports = { connectDb };

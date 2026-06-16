@@ -83,6 +83,35 @@ function normalizeVehicleType(value) {
   return type;
 }
 
+function normalizeVehicleYear(value) {
+  if (value === undefined || value === null || value === "") {
+    return undefined;
+  }
+
+  const year = Number(value);
+  const maxYear = new Date().getFullYear() + 1;
+
+  if (!Number.isInteger(year) || year < 1900 || year > maxYear) {
+    throw new HttpError(400, `Vehicle year must be between 1900 and ${maxYear}`);
+  }
+
+  return year;
+}
+
+async function assertUniqueVehiclePlate(userId, plate, excludedVehicleId) {
+  if (!plate) return;
+
+  const query = { user: userId, plate };
+  if (excludedVehicleId) {
+    query._id = { $ne: excludedVehicleId };
+  }
+
+  const existingVehicle = await Vehicle.findOne(query);
+  if (existingVehicle) {
+    throw new HttpError(409, "A vehicle with this license plate already exists");
+  }
+}
+
 function parseFullName(value) {
   const fullName = cleanString(value);
 
@@ -371,6 +400,7 @@ const createVehicle = asyncHandler(async (req, res) => {
   const plate = normalizePlate(req.body.plate || req.body.licensePlate);
   const brand = cleanString(req.body.brand || req.body.make);
   const model = cleanString(req.body.model);
+  const year = normalizeVehicleYear(req.body.year);
   const vehicleCount = await Vehicle.countDocuments({ user: req.user._id });
 
   if (!vehicleTypes.some((item) => item.code === type)) {
@@ -389,6 +419,8 @@ const createVehicle = asyncHandler(async (req, res) => {
     throw new HttpError(400, "Vehicle model is required");
   }
 
+  await assertUniqueVehiclePlate(req.user._id, plate);
+
   const isPrimary = vehicleCount === 0 || isEnabled(req.body.isPrimary);
 
   if (isPrimary) {
@@ -401,7 +433,7 @@ const createVehicle = asyncHandler(async (req, res) => {
     plate,
     brand,
     model,
-    year: req.body.year ? Number(req.body.year) : undefined,
+    year,
     color: cleanString(req.body.color),
     notes: cleanString(req.body.notes),
     isPrimary,
@@ -440,12 +472,17 @@ const updateVehicle = asyncHandler(async (req, res) => {
   }
 
   if (req.body.plate || req.body.licensePlate) {
-    vehicle.plate = normalizePlate(req.body.plate || req.body.licensePlate);
+    const plate = normalizePlate(req.body.plate || req.body.licensePlate);
+    if (!plate) {
+      throw new HttpError(400, "License plate is required");
+    }
+    await assertUniqueVehiclePlate(req.user._id, plate, vehicle._id);
+    vehicle.plate = plate;
   }
 
   if (req.body.brand || req.body.make) vehicle.brand = cleanString(req.body.brand || req.body.make);
   if (req.body.model) vehicle.model = cleanString(req.body.model);
-  if (req.body.year !== undefined) vehicle.year = Number(req.body.year);
+  if (req.body.year !== undefined) vehicle.year = normalizeVehicleYear(req.body.year);
   if (req.body.color !== undefined) vehicle.color = cleanString(req.body.color);
   if (req.body.notes !== undefined) vehicle.notes = cleanString(req.body.notes);
 

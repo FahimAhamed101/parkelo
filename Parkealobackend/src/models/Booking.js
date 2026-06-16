@@ -173,6 +173,15 @@ const bookingSchema = new mongoose.Schema(
     },
     checkedInAt: Date,
     checkedOutAt: Date,
+    actualParkingDurationSeconds: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    actualParkingDurationLabel: {
+      type: String,
+      trim: true,
+    },
     vehiclePlate: {
       type: String,
       required: true,
@@ -203,6 +212,12 @@ const bookingSchema = new mongoose.Schema(
       leavingValuables: { type: Boolean, default: false },
       acknowledgedAt: Date,
       hostNotifiedAt: Date,
+      checkInLocation: {
+        latitude: Number,
+        longitude: Number,
+        distanceMeters: Number,
+        verifiedAt: Date,
+      },
     },
     extensions: {
       type: [extensionSchema],

@@ -4,6 +4,7 @@ const Stripe = require("stripe");
 const Booking = require("../models/Booking");
 const Parking = require("../models/Parking");
 const { buildBookingWindow, formatDuration, formatTimer, normalizeBookingDate } = require("../utils/bookingTime");
+const { getDistanceMeters } = require("../utils/distance");
 const { HttpError } = require("../utils/httpError");
 const { calculateBookingPricing, calculateExtensionPricing, formatMoney, roundMoney } = require("../utils/pricing");
 
@@ -28,6 +29,19 @@ function asyncHandler(handler) {
 
 function cleanString(value) {
   return typeof value === "string" ? value.trim() : undefined;
+}
+
+function getActualParkingDurationMs(booking, checkedOutAt = booking.checkedOutAt || new Date()) {
+  if (!booking.checkedInAt) return 0;
+
+  const checkedInTime = new Date(booking.checkedInAt).getTime();
+  const checkedOutTime = new Date(checkedOutAt).getTime();
+
+  if (!Number.isFinite(checkedInTime) || !Number.isFinite(checkedOutTime)) {
+    return 0;
+  }
+
+  return Math.max(checkedOutTime - checkedInTime, 0);
 }
 
 function cleanEnv(name) {
@@ -122,6 +136,35 @@ function parseScannedParkingId(value) {
   }
 
   return undefined;
+}
+
+function getCoordinatesFromBody(body) {
+  const latitude = Number(body.latitude ?? body.lat ?? body.location?.latitude ?? body.location?.lat);
+  const longitude = Number(body.longitude ?? body.lng ?? body.location?.longitude ?? body.location?.lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return null;
+  }
+
+  return { latitude, longitude };
+}
+
+function getParkingSnapshotDistanceMeters(origin, booking) {
+  const coordinates = booking.parkingSnapshot?.coordinates;
+
+  if (
+    !coordinates ||
+    typeof coordinates.latitude !== "number" ||
+    typeof coordinates.longitude !== "number"
+  ) {
+    return null;
+  }
+
+  return getDistanceMeters(origin, {
+    location: {
+      coordinates: [coordinates.longitude, coordinates.latitude],
+    },
+  });
 }
 
 function extractCardLast4(body) {
@@ -301,6 +344,37 @@ async function verifyStripePayment(body, quote, userId) {
   };
 }
 
+async function verifyStripeExtensionPayment(body, quote, booking, userId) {
+  const paymentIntentId = extractPaymentIntentId(body);
+
+  if (!paymentIntentId) {
+    throw new HttpError(400, "Stripe payment intent is required for card payments");
+  }
+
+  const currency = getStripeCurrency(quote);
+  const expectedAmount = toStripeAmount(quote.total, currency);
+  const stripe = getStripeClient();
+  const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+  if (paymentIntent.status !== "succeeded") {
+    throw new HttpError(402, "Card payment was not completed");
+  }
+
+  if (paymentIntent.amount !== expectedAmount || paymentIntent.currency !== currency) {
+    throw new HttpError(400, "Stripe payment amount does not match this extension");
+  }
+
+  if (paymentIntent.metadata?.userId && paymentIntent.metadata.userId !== userId.toString()) {
+    throw new HttpError(403, "Stripe payment does not belong to this user");
+  }
+
+  if (paymentIntent.metadata?.bookingId && paymentIntent.metadata.bookingId !== booking._id.toString()) {
+    throw new HttpError(400, "Stripe payment does not belong to this booking");
+  }
+
+  return paymentIntent;
+}
+
 async function buildPayment(body, pricing, quote, userId) {
   const method = normalizePaymentMethod(body.paymentMethod || (body.payment && body.payment.method));
 
@@ -408,10 +482,11 @@ function presentQuote(quote) {
 async function presentBooking(booking, options = {}) {
   const value = booking.toObject ? booking.toObject() : booking;
   const timeRange = `${value.arrivalTime} - ${getEndTimeLabel(value.endAt)}`;
-  const parkedMilliseconds = value.checkedInAt
-    ? (value.checkedOutAt ? new Date(value.checkedOutAt).getTime() : Date.now()) -
-      new Date(value.checkedInAt).getTime()
-    : 0;
+  const parkedMilliseconds = value.actualParkingDurationSeconds
+    ? value.actualParkingDurationSeconds * 1000
+    : getActualParkingDurationMs(value, value.checkedOutAt || new Date());
+  const actualParkingDurationSeconds = Math.floor(parkedMilliseconds / 1000);
+  const actualParkingDurationLabel = value.actualParkingDurationLabel || formatTimer(parkedMilliseconds);
   const response = {
     id: value._id.toString(),
     confirmationCode: value.confirmationCode,
@@ -433,7 +508,9 @@ async function presentBooking(booking, options = {}) {
       endAt: value.endAt,
       checkedInAt: value.checkedInAt,
       checkedOutAt: value.checkedOutAt,
-      parkingTimer: value.checkedInAt ? formatTimer(parkedMilliseconds) : null,
+      actualParkingDurationSeconds,
+      actualParkingDurationLabel: value.checkedInAt ? actualParkingDurationLabel : null,
+      parkingTimer: value.checkedInAt ? actualParkingDurationLabel : null,
       space: "Assigned at arrival",
       vehiclePlate: value.vehiclePlate,
       bookForOther: value.bookForOther,
@@ -535,6 +612,52 @@ const createPaymentIntent = asyncHandler(async (req, res) => {
     amount,
     currency: currency.toUpperCase(),
     quote: presentQuote(quote),
+  });
+});
+
+const createExtensionPaymentIntent = asyncHandler(async (req, res) => {
+  const booking = await findOwnedBooking(req.user._id, req.params.id);
+
+  if (booking.status !== "in_progress") {
+    throw new HttpError(400, "Only active parking sessions can be extended");
+  }
+
+  const parking = await getParkingForBooking(booking);
+  const additionalHours = validateAdditionalHours(req.body.additionalHours, parking.bookingSettings.maxExtensionHours);
+  const quote = calculateExtensionPricing(parking, additionalHours);
+  const currency = getStripeCurrency(quote);
+  const amount = toStripeAmount(quote.total, currency);
+  const publishableKey = getStripePublishableKey();
+
+  if (!publishableKey) {
+    throw new HttpError(503, "Stripe publishable key is not configured on the server");
+  }
+
+  const paymentIntent = await getStripeClient().paymentIntents.create({
+    amount,
+    currency,
+    automatic_payment_methods: { enabled: true },
+    metadata: {
+      userId: req.user._id.toString(),
+      bookingId: booking._id.toString(),
+      parkingId: booking.parking.toString(),
+      additionalHours: String(additionalHours),
+      type: "booking_extension",
+    },
+  });
+
+  res.status(201).json({
+    success: true,
+    message: "Stripe payment intent created",
+    publishableKey,
+    paymentIntentId: paymentIntent.id,
+    clientSecret: paymentIntent.client_secret,
+    amount,
+    currency: currency.toUpperCase(),
+    quote: {
+      ...quote,
+      displayTotal: formatMoney(quote.total, quote.currencySymbol),
+    },
   });
 });
 
@@ -696,6 +819,7 @@ const checkInBooking = asyncHandler(async (req, res) => {
   const booking = await findOwnedBooking(req.user._id, req.params.id);
   const confirmationCode = cleanString(req.body.confirmationCode);
   const scannedParkingId = parseScannedParkingId(req.body.qrPayload || req.body.scannedCode || req.body.parkingQr);
+  const checkInLocation = getCoordinatesFromBody(req.body);
 
   if (booking.status !== "pending_checkin") {
     throw new HttpError(400, "Booking is not ready for check-in");
@@ -705,16 +829,32 @@ const checkInBooking = asyncHandler(async (req, res) => {
     throw new HttpError(400, "Invalid check-in code");
   }
 
-  if (!scannedParkingId) {
-    throw new HttpError(400, "Parking QR code is required for check-in");
+  let locationDistanceMeters = null;
+  if (checkInLocation) {
+    locationDistanceMeters = getParkingSnapshotDistanceMeters(checkInLocation, booking);
+  }
+  const isNearby = locationDistanceMeters !== null && locationDistanceMeters <= 40;
+
+  if (!scannedParkingId && !isNearby) {
+    throw new HttpError(400, "Move within 40 meters of the parking or scan the parking QR code to check in");
   }
 
-  if (scannedParkingId !== booking.parking.toString()) {
+  if (scannedParkingId && scannedParkingId !== booking.parking.toString()) {
     throw new HttpError(400, "This QR code does not match your booking parking");
   }
 
   booking.status = "in_progress";
   booking.checkedInAt = new Date();
+  booking.safety = {
+    ...(booking.safety?.toObject ? booking.safety.toObject() : booking.safety || {}),
+    checkInLocation: checkInLocation
+      ? {
+          ...checkInLocation,
+          distanceMeters: locationDistanceMeters,
+          verifiedAt: new Date(),
+        }
+      : undefined,
+  };
   await booking.save();
 
   res.json({
@@ -827,6 +967,10 @@ const extendBooking = asyncHandler(async (req, res) => {
     throw new HttpError(400, "Payment method must be card or cash");
   }
 
+  if (paymentMethod === "card") {
+    await verifyStripeExtensionPayment(req.body, quote, booking, req.user._id);
+  }
+
   booking.durationHours += additionalHours;
   booking.endAt = new Date(booking.endAt.getTime() + additionalHours * 60 * 60 * 1000);
   booking.pricing.extensionSubtotal = roundMoney(booking.pricing.extensionSubtotal + quote.subtotal);
@@ -850,6 +994,7 @@ const extendBooking = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: "Parking time extended",
+    addedHours: additionalHours,
     chargedAmount: paymentMethod === "cash" ? 0 : quote.total,
     displayChargedAmount: formatMoney(paymentMethod === "cash" ? 0 : quote.total, quote.currencySymbol),
     booking: await presentBooking(booking, { includeQr: true }),
@@ -863,8 +1008,13 @@ const checkOutBooking = asyncHandler(async (req, res) => {
     throw new HttpError(400, "Booking is not currently in parking");
   }
 
+  const checkedOutAt = new Date();
+  const actualParkingDurationMs = getActualParkingDurationMs(booking, checkedOutAt);
+
   booking.status = "completed";
-  booking.checkedOutAt = new Date();
+  booking.checkedOutAt = checkedOutAt;
+  booking.actualParkingDurationSeconds = Math.floor(actualParkingDurationMs / 1000);
+  booking.actualParkingDurationLabel = formatTimer(actualParkingDurationMs);
   await booking.save();
   const parking = await Parking.findById(booking.parking);
   if (parking) {
@@ -885,6 +1035,8 @@ const checkOutBooking = asyncHandler(async (req, res) => {
     message: "Check-out successful",
     totalCharged: booking.pricing.paidTotal,
     displayTotalCharged: formatMoney(booking.pricing.paidTotal, booking.pricing.currencySymbol),
+    actualParkingDurationSeconds: booking.actualParkingDurationSeconds,
+    actualParkingDurationLabel: booking.actualParkingDurationLabel,
     booking: await presentBooking(booking),
   });
 });
@@ -939,6 +1091,7 @@ module.exports = {
   checkInBooking,
   checkOutBooking,
   createBooking,
+  createExtensionPaymentIntent,
   createPaymentIntent,
   extendBooking,
   getBooking,

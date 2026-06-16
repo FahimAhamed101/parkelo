@@ -2,7 +2,7 @@
   "info": {
     "name": "Parkealo API",
     "_postman_id": "d59df1de-a5a0-4fa4-bff1-parkealoapi",
-    "description": "Postman collection for Parkealo backend APIs: auth, parking discovery, bookings, favorites, and host panel.",
+    "description": "Postman collection for Parkealo backend APIs: auth, account, parking discovery, bookings, favorites, host panel, and admin management.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -47,6 +47,30 @@
     },
     {
       "key": "hostParkingId",
+      "value": ""
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@admin.com"
+    },
+    {
+      "key": "adminPassword",
+      "value": "admin1234"
+    },
+    {
+      "key": "adminUserId",
+      "value": ""
+    },
+    {
+      "key": "adminParkingId",
+      "value": ""
+    },
+    {
+      "key": "withdrawalId",
+      "value": ""
+    },
+    {
+      "key": "supportTicketId",
       "value": ""
     }
   ],
@@ -834,6 +858,50 @@
             "header": [],
             "url": "{{baseUrl}}/api/bookings/{{bookingId}}/check-out"
           }
+        },
+        {
+          "name": "Create Booking Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings/payment-intent",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parkingId\": \"{{parkingId}}\",\n  \"date\": \"2026-06-20\",\n  \"arrivalTime\": \"7:30 AM\",\n  \"durationHours\": 2,\n  \"insuranceIncluded\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create Extension Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/bookings/{{bookingId}}/extension-payment-intent",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"additionalHours\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
         }
       ]
     },
@@ -862,6 +930,28 @@
             "method": "DELETE",
             "header": [],
             "url": "{{baseUrl}}/api/favorites/{{parkingId}}"
+          }
+        },
+        {
+          "name": "Add Favorite (Body)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/favorites",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parkingId\": \"{{parkingId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]
@@ -1161,6 +1251,275 @@
               "raw": "{\n  \"reason\": \"Space no longer available\"\n}"
             },
             "url": "{{baseUrl}}/api/host/requests/{{bookingId}}/decline"
+          }
+        },
+        {
+          "name": "List Host Parkings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings"
+          }
+        },
+        {
+          "name": "Get Parking Layout",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/layout"
+          }
+        },
+        {
+          "name": "Update Parking Layout",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/layout",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sections\": [\n    {\n      \"code\": \"A\",\n      \"name\": \"Ground Floor\",\n      \"spaces\": [\n        \"A1\",\n        \"A2\",\n        \"A3\",\n        \"A4\"\n      ],\n      \"hourly\": 150,\n      \"daily\": 800,\n      \"weekly\": 4500\n    },\n    {\n      \"code\": \"B\",\n      \"name\": \"Second Floor\",\n      \"spaces\": [\n        \"B1\",\n        \"B2\"\n      ],\n      \"hourly\": 175,\n      \"daily\": 900,\n      \"weekly\": 5000\n    }\n  ],\n  \"occupiedSpaces\": [\n    \"A1\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update Reservation Mode",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/host/parkings/{{hostParkingId}}/reservation-mode",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mode\": \"automatic\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Host Dashboard For Parking",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/dashboard?parkingId={{hostParkingId}}"
+          }
+        },
+        {
+          "name": "Host Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/host/bookings?tab=all"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/dashboard"
+          }
+        },
+        {
+          "name": "List Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users?search=&role="
+          }
+        },
+        {
+          "name": "Create Host User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Host\",\n  \"lastName\": \"Owner\",\n  \"email\": \"host.owner@example.com\",\n  \"phoneNumber\": \"+18095550123\",\n  \"vehiclePlate\": \"HOST123\",\n  \"password\": \"secret123\",\n  \"role\": \"host\",\n  \"isEmailVerified\": true,\n  \"isPhoneVerified\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Update User Role / Verification",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/users/{{adminUserId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"admin\",\n  \"isEmailVerified\": true,\n  \"isPhoneVerified\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/users/{{adminUserId}}"
+          }
+        },
+        {
+          "name": "List Parkings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/parkings?search=&status="
+          }
+        },
+        {
+          "name": "Update Parking Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/parkings/{{adminParkingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\",\n  \"submissionStatus\": \"approved\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Bookings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/bookings?search=&status="
+          }
+        },
+        {
+          "name": "Update Booking Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/bookings/{{bookingId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"completed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Withdrawals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/withdrawals?status="
+          }
+        },
+        {
+          "name": "Update Withdrawal Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/withdrawals/{{withdrawalId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"processing\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "List Support Tickets",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/admin/support?status="
+          }
+        },
+        {
+          "name": "Update Support Ticket Status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/admin/support/{{supportTicketId}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"in_progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
           }
         }
       ]

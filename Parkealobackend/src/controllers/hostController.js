@@ -726,6 +726,67 @@ async function getHostParkingBookings(userId, filter = {}) {
   return Booking.find({ parking: { $in: parkingIds }, ...filter }).sort({ createdAt: -1 });
 }
 
+function getHostBookingTab(status) {
+  if (["pending_checkin", "in_progress"].includes(status)) return "active";
+  if (status === "pending_host_approval") return "requests";
+  return "history";
+}
+
+const statusLabels = {
+  pending_host_approval: "Pending approval",
+  pending_checkin: "Pending check-in",
+  in_progress: "In progress",
+  completed: "Completed",
+  cancelled: "Cancelled",
+  declined: "Declined",
+  expired: "Expired",
+};
+
+function presentHostBooking(booking) {
+  const startAt = booking.startAt ? new Date(booking.startAt) : null;
+  const endAt = booking.endAt ? new Date(booking.endAt) : null;
+
+  return {
+    id: booking._id.toString(),
+    confirmationCode: booking.confirmationCode,
+    status: booking.status,
+    statusLabel: statusLabels[booking.status] || booking.status,
+    tab: getHostBookingTab(booking.status),
+    approvalMode: booking.approvalMode,
+    vehiclePlate: booking.vehiclePlate,
+    parking: {
+      id: booking.parking.toString(),
+      name: booking.parkingSnapshot?.name || "Parking",
+      zone: booking.parkingSnapshot?.zone || "",
+      slug: booking.parkingSnapshot?.slug || "",
+    },
+    reservation: {
+      date: booking.date,
+      arrivalTime: booking.arrivalTime,
+      durationHours: booking.durationHours,
+      startAt: booking.startAt,
+      endAt: booking.endAt,
+      timeRange: `${booking.arrivalTime} - ${
+        endAt
+          ? endAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+          : ""
+      }`,
+      checkedInAt: booking.checkedInAt,
+      checkedOutAt: booking.checkedOutAt,
+      actualParkingDurationLabel: booking.actualParkingDurationLabel || null,
+    },
+    pricing: {
+      total: booking.pricing?.total || 0,
+      paidTotal: booking.pricing?.paidTotal || 0,
+      displayTotal: formatMoney(booking.pricing?.total || 0, booking.pricing?.currencySymbol),
+      displayPaidTotal: formatMoney(booking.pricing?.paidTotal || 0, booking.pricing?.currencySymbol),
+    },
+    createdAt: booking.createdAt,
+    updatedAt: booking.updatedAt,
+    sortTime: startAt || booking.createdAt,
+  };
+}
+
 const getHostSummary = asyncHandler(async (req, res) => {
   const parkings = await Parking.find({ hostUser: req.user._id }).sort({ createdAt: -1 });
 
@@ -739,6 +800,27 @@ const getHostSummary = asyncHandler(async (req, res) => {
     },
     primaryAction: parkings.length ? "Open host panel" : "Add my parking",
     parkings: parkings.map(presentHostParking),
+  });
+});
+
+const getHostBookings = asyncHandler(async (req, res) => {
+  const tab = cleanString(req.query.tab);
+  const allowedTabs = new Set(["active", "requests", "history"]);
+  const allBookings = await getHostParkingBookings(req.user._id);
+  const filteredBookings = allowedTabs.has(tab)
+    ? allBookings.filter((booking) => getHostBookingTab(booking.status) === tab)
+    : allBookings;
+
+  res.json({
+    success: true,
+    total: filteredBookings.length,
+    counts: {
+      all: allBookings.length,
+      active: allBookings.filter((booking) => getHostBookingTab(booking.status) === "active").length,
+      requests: allBookings.filter((booking) => getHostBookingTab(booking.status) === "requests").length,
+      history: allBookings.filter((booking) => getHostBookingTab(booking.status) === "history").length,
+    },
+    bookings: filteredBookings.map(presentHostBooking),
   });
 });
 
@@ -1016,6 +1098,16 @@ const getHostParking = asyncHandler(async (req, res) => {
   });
 });
 
+const getParkingLayout = asyncHandler(async (req, res) => {
+  const parking = await findOwnedParking(req.user._id, req.params.id);
+
+  res.json({
+    success: true,
+    layout: buildParkingLayout(parking),
+    parking: presentHostParking(parking),
+  });
+});
+
 const updateLocationStep = asyncHandler(async (req, res) => {
   const parking = await findOwnedParking(req.user._id, req.params.id);
   const name = cleanString(req.body.name || req.body.parkingName || req.body.hostName);
@@ -1272,26 +1364,35 @@ const submitParking = asyncHandler(async (req, res) => {
 const getDashboard = asyncHandler(async (req, res) => {
   const parkings = await Parking.find({ hostUser: req.user._id }).sort({ createdAt: -1 });
   const financials = await getHostFinancials(req.user._id);
+  const requestedParkingId = cleanString(req.query.parkingId || req.query.parking);
+  const primaryParking = requestedParkingId
+    ? parkings.find((parking) => parking._id.toString() === requestedParkingId) || null
+    : parkings[0] || null;
+  const scopedParkings = primaryParking ? [primaryParking] : parkings;
+  const scopedBookings = primaryParking
+    ? financials.bookings.filter((booking) => booking.parking.toString() === primaryParking._id.toString())
+    : financials.bookings;
   const todayStart = getStartOfDay();
-  const bookingsToday = financials.bookings.filter((booking) => booking.createdAt >= todayStart).length;
-  const totalSpaces = parkings.reduce((sum, parking) => sum + (parking.availability?.totalSpaces || 0), 0);
-  const availableSpaces = parkings.reduce((sum, parking) => sum + (parking.availability?.availableSpaces || 0), 0);
+  const bookingsToday = scopedBookings.filter((booking) => booking.createdAt >= todayStart).length;
+  const totalSpaces = scopedParkings.reduce((sum, parking) => sum + (parking.availability?.totalSpaces || 0), 0);
+  const availableSpaces = scopedParkings.reduce((sum, parking) => sum + (parking.availability?.availableSpaces || 0), 0);
   const occupiedSpaces = Math.max(totalSpaces - availableSpaces, 0);
-  const ratingValues = parkings.map((parking) => parking.rating?.average || 0).filter(Boolean);
+  const ratingValues = scopedParkings.map((parking) => parking.rating?.average || 0).filter(Boolean);
   const rating = ratingValues.length
     ? roundMoney(ratingValues.reduce((sum, value) => sum + value, 0) / ratingValues.length)
     : 0;
-  const primaryParking = parkings[0] || null;
+  const revenueToday = sumBookings(scopedBookings, (booking) => booking.createdAt >= todayStart);
 
   res.json({
     success: true,
+    parkings: parkings.map(presentHostParking),
     panel: {
       title: "Host panel",
       subtitle: primaryParking ? primaryParking.name : "Add your first parking",
       primaryParking: primaryParking ? presentHostParking(primaryParking) : null,
       stats: {
-        incomeToday: financials.totals.revenueToday,
-        incomeTodayLabel: formatMoney(financials.totals.revenueToday),
+        incomeToday: revenueToday,
+        incomeTodayLabel: formatMoney(revenueToday),
         occupancy: {
           occupied: occupiedSpaces,
           total: totalSpaces,
@@ -1308,7 +1409,7 @@ const getDashboard = asyncHandler(async (req, res) => {
           ? "You approve each reservation before confirmation."
           : "Reservations are confirmed automatically.",
       },
-      peakHourChart: buildHourlyChart(financials.bookings),
+      peakHourChart: buildHourlyChart(scopedBookings),
       invite: {
         code: req.user.hostProfile?.inviteCode || generateInviteCode(req.user),
         rewardAmount: req.user.hostProfile?.inviteRewardAmount || 500,
@@ -1462,6 +1563,29 @@ const requestWithdrawal = asyncHandler(async (req, res) => {
   });
 });
 
+const updateReservationMode = asyncHandler(async (req, res) => {
+  const parking = await findOwnedParking(req.user._id, req.params.id);
+  const mode = normalizeApprovalMode(req.body.mode || req.body.reservationMode || req.body.approvalMode);
+
+  parking.approvalMode = mode;
+  await parking.save();
+
+  res.json({
+    success: true,
+    message: mode === "automatic"
+      ? "Reservations will confirm automatically"
+      : "Reservations will require host approval",
+    parking: presentHostParking(parking),
+    reservationMode: {
+      mode: mode === "automatic" ? "automatic" : "manual",
+      active: true,
+      description: mode === "automatic"
+        ? "Reservations are confirmed automatically."
+        : "You approve each reservation before confirmation.",
+    },
+  });
+});
+
 const getPricing = asyncHandler(async (req, res) => {
   const parking = await findOwnedParking(req.user._id, req.params.id);
 
@@ -1544,9 +1668,11 @@ module.exports = {
   declineManualRequest,
   getBankAccount,
   getDashboard,
+  getHostBookings,
   getHostOptions,
   getHostAlerts,
   getHostParking,
+  getParkingLayout,
   getParkingQr,
   getHostSummary,
   getIncome,
@@ -1563,6 +1689,7 @@ module.exports = {
   updateParkingLayout,
   updateLocationStep,
   updatePhotosStep,
+  updateReservationMode,
   updateServicesStep,
   updateSpacesStep,
 };

@@ -174,7 +174,15 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-userSchema.index({ authProvider: 1, providerUserId: 1 }, { unique: true, sparse: true });
+userSchema.index(
+  { authProvider: 1, providerUserId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      providerUserId: { $type: "string" },
+    },
+  },
+);
 
 userSchema.pre("save", async function hashPassword() {
   if (!this.isModified("password") || !this.password) {

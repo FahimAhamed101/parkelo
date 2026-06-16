@@ -4,6 +4,7 @@ const {
   checkInBooking,
   checkOutBooking,
   createBooking,
+  createExtensionPaymentIntent,
   createPaymentIntent,
   extendBooking,
   getBooking,
@@ -33,6 +34,7 @@ router.post("/:id/check-in", checkInBooking);
 router.post("/:id/check-out", checkOutBooking);
 router.get("/:id/extension-options", getExtensionOptions);
 router.post("/:id/extension-quote", quoteExtension);
+router.post("/:id/extension-payment-intent", createExtensionPaymentIntent);
 router.post("/:id/extend", extendBooking);
 router.get("/:id/directions", getDirections);
 

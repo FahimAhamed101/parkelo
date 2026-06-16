@@ -5,9 +5,11 @@ const {
   approveManualRequest,
   getBankAccount,
   getHostAlerts,
+  getHostBookings,
   getDashboard,
   getHostOptions,
   getHostParking,
+  getParkingLayout,
   getHostSummary,
   getIncome,
   getManualRequests,
@@ -25,6 +27,7 @@ const {
   updateParkingLayout,
   updateLocationStep,
   updatePhotosStep,
+  updateReservationMode,
   updateServicesStep,
   updateSpacesStep,
 } = require("../controllers/hostController");
@@ -40,6 +43,7 @@ router.get("/options", getHostOptions);
 router.get("/dashboard", getDashboard);
 router.get("/income", getIncome);
 router.get("/alerts", getHostAlerts);
+router.get("/bookings", getHostBookings);
 router.get("/manual-requests", getManualRequests);
 router.post("/withdrawals", requestWithdrawal);
 router.get("/bank-account", getBankAccount);
@@ -48,12 +52,14 @@ router.get("/parkings", listHostParkings);
 router.post("/parkings", createHostParking);
 router.get("/parkings/:id", getHostParking);
 router.get("/parkings/:id/qr", getParkingQr);
+router.get("/parkings/:id/layout", getParkingLayout);
 router.patch("/parkings/:id/location", updateLocationStep);
 router.patch("/parkings/:id/details", updateDetailsStep);
 router.patch("/parkings/:id/spaces", updateSpacesStep);
 router.patch("/parkings/:id/layout", updateParkingLayout);
 router.patch("/parkings/:id/services", updateServicesStep);
 router.patch("/parkings/:id/photos", updatePhotosStep);
+router.patch("/parkings/:id/reservation-mode", updateReservationMode);
 router.get("/parkings/:id/review", getReview);
 router.post("/parkings/:id/submit", submitParking);
 router.get("/parkings/:id/pricing", getPricing);
